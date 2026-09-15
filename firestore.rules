@@ -1,0 +1,21 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /students/{studentId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+        && request.resource.data.id == studentId
+        && request.resource.data.name is string
+        && request.resource.data.arabicName is string
+        && request.resource.data.level is string
+        && request.resource.data.status in ['Lulus', 'Proses']
+        && request.resource.data.score is number
+        && request.resource.data.score >= 0
+        && request.resource.data.score <= 100
+        && request.resource.data.scores is list
+        && request.resource.data.scores.size() == 11;
+      allow delete: if false;
+    }
+  }
+}
