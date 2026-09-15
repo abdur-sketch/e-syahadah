@@ -1,6 +1,9 @@
 ## E-Syahadah
 
 MVP dashboard untuk membuat ijazah pesantren berbahasa Arab.
+
+Live: [https://e-syahadah-2026.web.app](https://e-syahadah-2026.web.app)
+
 First, run the development server:
 
 ```bash
