@@ -1,6 +1,6 @@
-import { signInAnonymously } from "firebase/auth";
 import {
   collection,
+  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
@@ -13,7 +13,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 
-import { firebaseAuth, firestore } from "@/lib/firebase";
+import { ensureFirebaseAuth, firestore } from "@/lib/firebase";
 
 export type Student = {
   name: string;
@@ -25,6 +25,11 @@ export type Student = {
   score: number;
   tone: string;
   scores: number[];
+  nisn?: string;
+  birthPlace?: string;
+  birthDate?: string;
+  guardian?: string;
+  certificateStatus?: "Belum" | "Terbit";
 };
 
 function fromFirestore(snapshot: QueryDocumentSnapshot<DocumentData>): Student | null {
@@ -50,12 +55,17 @@ function fromFirestore(snapshot: QueryDocumentSnapshot<DocumentData>): Student |
     score: typeof data.score === "number" ? data.score : Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length),
     tone: typeof data.tone === "string" ? data.tone : "sky",
     scores,
+    nisn: typeof data.nisn === "string" ? data.nisn : "",
+    birthPlace: typeof data.birthPlace === "string" ? data.birthPlace : "",
+    birthDate: typeof data.birthDate === "string" ? data.birthDate : "",
+    guardian: typeof data.guardian === "string" ? data.guardian : "",
+    certificateStatus: data.certificateStatus === "Terbit" ? "Terbit" : "Belum",
   };
 }
 
 async function ensureSignedIn() {
-  if (!firebaseAuth || !firestore) throw new Error("Firebase belum dikonfigurasi.");
-  if (!firebaseAuth.currentUser) await signInAnonymously(firebaseAuth);
+  if (!firestore) throw new Error("Firebase belum dikonfigurasi.");
+  await ensureFirebaseAuth();
 }
 
 export async function subscribeToStudents(
@@ -92,4 +102,9 @@ export async function saveStudent(student: Student, academicYear: string) {
     { ...student, academicYear, updatedAt: serverTimestamp() },
     { merge: true },
   );
+}
+
+export async function deleteStudent(studentId: string) {
+  await ensureSignedIn();
+  await deleteDoc(doc(firestore!, "students", studentId));
 }

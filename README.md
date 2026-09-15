@@ -31,6 +31,13 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 - Preview ijazah dua halaman: syahadah dan daftar nilai.
 - Print A4 / simpan sebagai PDF melalui dialog print browser.
 - Layout responsif untuk desktop dan mobile.
+- Metrik dashboard dihitung langsung dari data Firestore.
+- CRUD data santri lengkap dengan pencarian dan filter.
+- Input nilai realtime untuk setiap mata pelajaran.
+- Penerbitan, pratinjau, cetak A4, dan simpan PDF ijazah.
+- Pengelolaan nama mata pelajaran Indonesia/Arab dan status aktif.
+- Pengaturan identitas yayasan, pesantren, kota, dan kepala pesantren.
+- Notifikasi hasil operasi serta validasi data dasar.
 
 Data santri dan nilai sudah terintegrasi dengan Firebase Authentication anonim dan Cloud Firestore. Tanpa konfigurasi Firebase, aplikasi otomatis memakai state demo di browser.
 
@@ -40,7 +47,9 @@ Data santri dan nilai sudah terintegrasi dengan Firebase Authentication anonim d
 2. Aktifkan provider **Anonymous** di Authentication → Sign-in method.
 3. Salin `.env.example` menjadi `.env.local`, lalu isi konfigurasi Web App Firebase.
 4. Deploy rules dengan `firebase deploy --only firestore:rules` (Firebase CLI diperlukan).
-5. Jalankan `npm run dev`. Koleksi `students` akan dibuat dari data awal saat masih kosong.
+5. Jalankan `npm run firebase:seed` untuk mengisi data awal, lalu `npm run dev`.
+
+Gunakan `npm run firebase:test` untuk menguji operasi create, read, update, dan delete terhadap Firestore dan Security Rules aktif.
 
 Struktur data utama berada di koleksi `students`; ID dokumen sama dengan nomor syahadah, misalnya `SYH-2026-001`. Untuk produksi, ganti autentikasi anonim dengan login administrator dan tambahkan role pada Security Rules.
 

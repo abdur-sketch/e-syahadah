@@ -1,97 +1,172 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, BookOpen, Check, ChevronDown, ClipboardList, FileCheck2, FileText, GraduationCap, LayoutDashboard, Menu, MoreHorizontal, Printer, Search, Settings, SlidersHorizontal, Sparkles, Users, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Award, Bell, BookOpen, Check, ChevronDown, ClipboardList, Eye, FileCheck2, FileText, GraduationCap, LayoutDashboard, Menu, MoreHorizontal, Pencil, Plus, Printer, Save, Search, Settings, SlidersHorizontal, Sparkles, Trash2, UserPlus, Users, X } from "lucide-react";
 import { isFirebaseConfigured } from "@/lib/firebase";
-import { saveStudent, seedStudents, subscribeToStudents, type Student } from "@/lib/students";
+import { deleteStudent, saveStudent, seedStudents, subscribeToStudents, type Student } from "@/lib/students";
+import { defaultSubjects, saveSubjects, subscribeToSubjects, type Subject } from "@/lib/subjects";
+import { defaultSettings, saveSettings, subscribeToSettings, type InstitutionSettings } from "@/lib/settings";
 
-const subjects = ["Tauhid", "Akhlak", "Tafsir", "Hadits", "Fikih", "Nahwu", "Shorof", "Bahasa Arab", "Tarikh Islam", "Tajwid", "Imla' & Khat"];
 const initialScores = [82, 88, 76, 91, 84, 79, 86, 90, 81, 87, 85];
 const demoStudents: Student[] = [
-  { name: "Ahmad Fauzan", arabicName: "أحمد فوزان", initials: "AF", id: "SYH-2026-001", level: "Ulya", status: "Lulus", score: 84, tone: "rose", scores: initialScores },
-  { name: "Siti Aisyah", arabicName: "ستي عائشة", initials: "SA", id: "SYH-2026-002", level: "Ulya", status: "Lulus", score: 92, tone: "lavender", scores: [92, 94, 90, 93, 88, 91, 95, 89, 90, 94, 92] },
-  { name: "Muhammad Rizky", arabicName: "محمد رزقي", initials: "MR", id: "SYH-2026-003", level: "Wustha", status: "Proses", score: 74, tone: "mint", scores: [72, 76, 70, 78, 74, 71, 73, 75, 70, 77, 74] },
-  { name: "Nurul Hidayah", arabicName: "نور الهداية", initials: "NH", id: "SYH-2026-004", level: "Ulya", status: "Lulus", score: 88, tone: "peach", scores: [88, 90, 84, 92, 86, 87, 89, 91, 85, 90, 86] },
-  { name: "Abdullah Fikri", arabicName: "عبد الله فكري", initials: "AF", id: "SYH-2026-005", level: "Ulya", status: "Lulus", score: 83, tone: "sky", scores: [82, 85, 80, 86, 84, 79, 83, 87, 81, 85, 82] },
+  { name: "Ahmad Fauzan", arabicName: "أحمد فوزان", initials: "AF", id: "SYH-2026-001", level: "Ulya", status: "Lulus", score: 84, tone: "rose", scores: initialScores, nisn: "0061234501", birthPlace: "Jakarta", birthDate: "2006-04-12", guardian: "Abdul Karim", certificateStatus: "Belum" },
+  { name: "Siti Aisyah", arabicName: "ستي عائشة", initials: "SA", id: "SYH-2026-002", level: "Ulya", status: "Lulus", score: 92, tone: "lavender", scores: [92, 94, 90, 93, 88, 91, 95, 89, 90, 94, 92], nisn: "0061234502", birthPlace: "Bandung", birthDate: "2006-08-21", guardian: "Hasan Basri", certificateStatus: "Terbit" },
+  { name: "Muhammad Rizky", arabicName: "محمد رزقي", initials: "MR", id: "SYH-2026-003", level: "Wustha", status: "Proses", score: 74, tone: "mint", scores: [72, 76, 70, 78, 74, 71, 73, 75, 70, 77, 74], nisn: "0071234503", birthPlace: "Bogor", birthDate: "2007-01-17", guardian: "Fahmi Idris", certificateStatus: "Belum" },
+  { name: "Nurul Hidayah", arabicName: "نور الهداية", initials: "NH", id: "SYH-2026-004", level: "Ulya", status: "Lulus", score: 88, tone: "peach", scores: [88, 90, 84, 92, 86, 87, 89, 91, 85, 90, 86], nisn: "0061234504", birthPlace: "Bekasi", birthDate: "2006-11-02", guardian: "Muhammad Ilyas", certificateStatus: "Terbit" },
+  { name: "Abdullah Fikri", arabicName: "عبد الله فكري", initials: "AF", id: "SYH-2026-005", level: "Ulya", status: "Lulus", score: 83, tone: "sky", scores: [82, 85, 80, 86, 84, 79, 83, 87, 81, 85, 82], nisn: "0061234505", birthPlace: "Depok", birthDate: "2006-06-09", guardian: "Syamsul Arifin", certificateStatus: "Belum" },
 ];
 const navItems = [{ label: "Dashboard", icon: LayoutDashboard }, { label: "Data Santri", icon: Users }, { label: "Input Nilai", icon: ClipboardList }, { label: "Ijazah", icon: FileCheck2 }];
+const now = new Date();
+const today = new Intl.DateTimeFormat("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta" }).format(now).toUpperCase();
+const currentYear = Number(new Intl.DateTimeFormat("en", { year: "numeric", timeZone: "Asia/Jakarta" }).format(now));
+const currentMonth = Number(new Intl.DateTimeFormat("en", { month: "numeric", timeZone: "Asia/Jakarta" }).format(now));
+const academicYear = currentMonth >= 7 ? `${currentYear}/${currentYear + 1}` : `${currentYear - 1}/${currentYear}`;
+const tones = ["rose", "lavender", "mint", "peach", "sky"];
+
 function numberToArabic(value: number) { return value.toString().replace(/[0-9]/g, (digit) => "٠١٢٣٤٥٦٧٨٩"[Number(digit)]); }
 function scoreWord(score: number) { if (score >= 90) return "ممتاز"; if (score >= 80) return "جيد جداً"; if (score >= 70) return "جيد"; return "مقبول"; }
-const today = new Intl.DateTimeFormat("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta" }).format(new Date()).toUpperCase();
-const currentYear = Number(new Intl.DateTimeFormat("en", { year: "numeric", timeZone: "Asia/Jakarta" }).format(new Date()));
-const currentMonth = Number(new Intl.DateTimeFormat("en", { month: "numeric", timeZone: "Asia/Jakarta" }).format(new Date()));
-const academicYear = currentMonth >= 7 ? `${currentYear}/${currentYear + 1}` : `${currentYear - 1}/${currentYear}`;
+function getInitials(name: string) { return name.split(/\s+/).slice(0, 2).map((word) => word[0]).join("").toUpperCase(); }
 
 export default function Home() {
   const [activeNav, setActiveNav] = useState("Dashboard");
-  const [students, setStudents] = useState(demoStudents);
-  const [selectedStudentId, setSelectedStudentId] = useState(demoStudents[0].id);
-  const selectedStudentIdRef = useRef(demoStudents[0].id);
+  const [students, setStudents] = useState<Student[]>(demoStudents);
+  const [subjects, setSubjects] = useState<Subject[]>(defaultSubjects);
+  const [institution, setInstitution] = useState<InstitutionSettings>(defaultSettings);
+  const [settingsForm, setSettingsForm] = useState<InstitutionSettings>(defaultSettings);
+  const [selectedId, setSelectedId] = useState(demoStudents[0].id);
+  const selectedIdRef = useRef(demoStudents[0].id);
   const [scores, setScores] = useState(initialScores);
-  const [showPreview, setShowPreview] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [levelFilter, setLevelFilter] = useState("Semua");
+  const [statusFilter, setStatusFilter] = useState("Semua");
+  const [showFilters, setShowFilters] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [studentForm, setStudentForm] = useState<Student | null>(null);
+  const [isNewStudent, setIsNewStudent] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [syncState, setSyncState] = useState<"demo" | "connecting" | "connected" | "saving" | "saved" | "error">(isFirebaseConfigured ? "connecting" : "demo");
-  const average = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
-  const currentStudent = students.find((student) => student.id === selectedStudentId) ?? students[0];
-  const filteredStudents = useMemo(() => students.filter((student) => student.name.toLowerCase().includes(search.toLowerCase())), [search, students]);
+  const [toast, setToast] = useState("");
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const currentStudent = students.find((student) => student.id === selectedId) ?? students[0];
+  const average = Math.round(scores.reduce((sum, score) => sum + score, 0) / Math.max(scores.length, 1));
   const passed = average >= 70;
-  function chooseStudent(student: Student) { selectedStudentIdRef.current = student.id; setSelectedStudentId(student.id); setScores([...student.scores]); }
-  function navigate(label: string) { setActiveNav(label); setMobileMenuOpen(false); }
-  async function handleSave() {
-    const updatedStudent: Student = { ...currentStudent, scores, score: average, status: passed ? "Lulus" : "Proses" };
-    setStudents((current) => current.map((student) => student.id === updatedStudent.id ? updatedStudent : student));
-    if (!isFirebaseConfigured) { setShowPreview(true); return; }
-    setSyncState("saving");
-    try {
-      await saveStudent(updatedStudent, academicYear);
-      setSyncState("saved");
-      setShowPreview(true);
-    } catch (error) {
-      console.error(error);
-      setSyncState("error");
-    }
+  const filteredStudents = useMemo(() => students.filter((student) =>
+    (student.name.toLowerCase().includes(search.toLowerCase()) || student.id.toLowerCase().includes(search.toLowerCase())) &&
+    (levelFilter === "Semua" || student.level === levelFilter) && (statusFilter === "Semua" || student.status === statusFilter)
+  ), [levelFilter, search, statusFilter, students]);
+  const passedCount = students.filter((student) => student.status === "Lulus").length;
+  const issuedCount = students.filter((student) => student.certificateStatus === "Terbit").length;
+  const pendingCount = students.filter((student) => student.status === "Lulus" && student.certificateStatus !== "Terbit").length;
+  const progress = passedCount ? Math.round((issuedCount / passedCount) * 100) : 0;
+
+  function notify(message: string) { setToast(message); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(""), 3200); }
+  function navigate(label: string) { setActiveNav(label); setMobileMenuOpen(false); setSearch(""); }
+  function chooseStudent(student: Student) { selectedIdRef.current = student.id; setSelectedId(student.id); setScores([...student.scores]); }
+  function makeStudent(): Student { const number = String(students.length + 1).padStart(3, "0"); return { id: `SYH-${currentYear}-${number}`, name: "", arabicName: "", initials: "", level: "Ulya", status: "Proses", score: 0, tone: tones[students.length % tones.length], scores: Array(11).fill(0), nisn: "", birthPlace: "", birthDate: "", guardian: "", certificateStatus: "Belum" }; }
+  function openAddStudent() { setIsNewStudent(true); setStudentForm(makeStudent()); }
+  function openEditStudent(student: Student) { setIsNewStudent(false); setStudentForm({ ...student, scores: [...student.scores] }); }
+  async function submitStudent(event: FormEvent) {
+    event.preventDefault();
+    if (!studentForm?.name.trim() || !studentForm.id.trim()) return notify("Nama dan nomor syahadah wajib diisi.");
+    if (isNewStudent && students.some((student) => student.id === studentForm.id.trim())) return notify("Nomor syahadah sudah digunakan.");
+    const prepared = { ...studentForm, name: studentForm.name.trim(), initials: getInitials(studentForm.name), score: Math.round(studentForm.scores.reduce((sum, score) => sum + score, 0) / 11) };
+    try { setSyncState("saving"); if (isFirebaseConfigured) await saveStudent(prepared, academicYear); setStudents((list) => isNewStudent ? [...list, prepared] : list.map((item) => item.id === prepared.id ? prepared : item)); setStudentForm(null); setSyncState(isFirebaseConfigured ? "saved" : "demo"); notify(isNewStudent ? "Santri berhasil ditambahkan." : "Data santri diperbarui."); }
+    catch (error) { console.error(error); setSyncState("error"); notify("Data gagal disimpan. Periksa Firebase."); }
   }
-  useEffect(() => {
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") { setShowPreview(false); setMobileMenuOpen(false); }
-    }
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, []);
+  async function removeStudent(student: Student) {
+    if (students.length === 1) return notify("Minimal satu data santri harus tersedia.");
+    if (!window.confirm(`Hapus data ${student.name}? Tindakan ini tidak dapat dibatalkan.`)) return;
+    try { if (isFirebaseConfigured) await deleteStudent(student.id); setStudents((list) => list.filter((item) => item.id !== student.id)); if (selectedId === student.id) { const next = students.find((item) => item.id !== student.id); if (next) chooseStudent(next); } notify("Data santri dihapus."); }
+    catch (error) { console.error(error); notify("Data gagal dihapus."); }
+  }
+  async function saveGrades() {
+    const updated = { ...currentStudent, scores, score: average, status: passed ? "Lulus" as const : "Proses" as const };
+    try { setSyncState("saving"); if (isFirebaseConfigured) await saveStudent(updated, academicYear); setStudents((list) => list.map((student) => student.id === updated.id ? updated : student)); setSyncState(isFirebaseConfigured ? "saved" : "demo"); notify("Nilai berhasil disimpan."); }
+    catch (error) { console.error(error); setSyncState("error"); notify("Nilai gagal disimpan."); }
+  }
+  async function issueCertificate(student: Student) {
+    const updated = { ...student, certificateStatus: "Terbit" as const };
+    try { if (isFirebaseConfigured) await saveStudent(updated, academicYear); setStudents((list) => list.map((item) => item.id === student.id ? updated : item)); chooseStudent(updated); setShowPreview(true); notify("Ijazah berhasil diterbitkan."); }
+    catch (error) { console.error(error); notify("Ijazah gagal diterbitkan."); }
+  }
+  async function persistSubjects() { try { if (isFirebaseConfigured) await saveSubjects(subjects); notify("Mata pelajaran berhasil disimpan."); } catch (error) { console.error(error); notify("Mata pelajaran gagal disimpan."); } }
+  async function persistSettings(event: FormEvent) { event.preventDefault(); try { if (isFirebaseConfigured) await saveSettings(settingsForm); setInstitution(settingsForm); notify("Pengaturan pesantren berhasil disimpan."); } catch (error) { console.error(error); notify("Pengaturan gagal disimpan."); } }
+
+  useEffect(() => { function closeOnEscape(event: KeyboardEvent) { if (event.key === "Escape") { setShowPreview(false); setStudentForm(null); setMobileMenuOpen(false); } } window.addEventListener("keydown", closeOnEscape); return () => window.removeEventListener("keydown", closeOnEscape); }, []);
   useEffect(() => {
     if (!isFirebaseConfigured) return;
-    let active = true;
-    let unsubscribe: (() => void) | undefined;
-    void subscribeToStudents(async (remoteStudents) => {
-      if (!active) return;
-      if (remoteStudents.length === 0) {
-        try { await seedStudents(demoStudents, academicYear); }
-        catch (error) { console.error(error); setSyncState("error"); }
-        return;
-      }
-      const selected = remoteStudents.find((student) => student.id === selectedStudentIdRef.current) ?? remoteStudents[0];
-      selectedStudentIdRef.current = selected.id;
-      setStudents(remoteStudents);
-      setSelectedStudentId(selected.id);
-      setScores([...selected.scores]);
-      setSyncState("connected");
-    }, (error) => { console.error(error); setSyncState("error"); })
-      .then((stop) => { if (active) unsubscribe = stop; else stop(); })
-      .catch((error) => { console.error(error); setSyncState("error"); });
-    return () => { active = false; unsubscribe?.(); };
+    let active = true; const stops: (() => void)[] = [];
+    subscribeToStudents(async (remote) => { if (!active) return; if (!remote.length) { await seedStudents(demoStudents, academicYear); return; } const selected = remote.find((item) => item.id === selectedIdRef.current) ?? remote[0]; selectedIdRef.current = selected.id; setStudents(remote); setSelectedId(selected.id); setScores([...selected.scores]); setSyncState("connected"); }, () => setSyncState("error")).then((stop) => active ? stops.push(stop) : stop()).catch(() => setSyncState("error"));
+    subscribeToSubjects(async (remote) => { if (!active) return; if (!remote.length) { await saveSubjects(defaultSubjects); return; } setSubjects(remote); }, () => notify("Mata pelajaran gagal dimuat.")).then((stop) => active ? stops.push(stop) : stop()).catch(() => undefined);
+    subscribeToSettings((data) => { if (!active) return; setInstitution(data); setSettingsForm(data); }, () => notify("Pengaturan gagal dimuat.")).then((stop) => active ? stops.push(stop) : stop()).catch(() => undefined);
+    return () => { active = false; stops.forEach((stop) => stop()); };
   }, []);
-  return (
-    <main className="app-shell">
-      {mobileMenuOpen && <button className="sidebar-backdrop" aria-label="Tutup menu" onClick={() => setMobileMenuOpen(false)} />}
-      <aside className={`sidebar ${mobileMenuOpen ? "open" : ""}`} aria-label="Navigasi utama"><div className="brand"><div className="brand-mark"><Sparkles size={19} /></div><div><strong>E-SYAHADAH</strong><span>Pesantren Digital</span></div><button className="sidebar-close" aria-label="Tutup menu" onClick={() => setMobileMenuOpen(false)}><X size={18} /></button></div><div className="sidebar-section"><p className="eyebrow">WORKSPACE</p>{navItems.map(({ label, icon: Icon }) => <button key={label} className={`nav-item ${activeNav === label ? "active" : ""}`} onClick={() => navigate(label)}><Icon size={18} /><span>{label}</span>{label === "Ijazah" && <span className="nav-count">12</span>}</button>)}</div><div className="sidebar-section sidebar-bottom"><p className="eyebrow">KONFIGURASI</p><button className={`nav-item ${activeNav === "Mata Pelajaran" ? "active" : ""}`} onClick={() => navigate("Mata Pelajaran")}><BookOpen size={18} /><span>Mata Pelajaran</span></button><button className={`nav-item ${activeNav === "Pengaturan" ? "active" : ""}`} onClick={() => navigate("Pengaturan")}><Settings size={18} /><span>Pengaturan</span></button><div className="help-card"><div className="help-icon"><GraduationCap size={18} /></div><strong>Butuh bantuan?</strong><span>Pelajari cara membuat ijazah</span><button>Lihat panduan <span>↗</span></button></div></div><div className="profile"><div className="avatar small">AR</div><div><strong>Ahmad Rasyid</strong><span>Administrator</span></div><MoreHorizontal size={18} className="muted-icon" /></div></aside>
-      <section className="main-content"><header className="topbar"><button className="mobile-menu" aria-label="Buka menu" aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)}><Menu size={20} /></button><div className="breadcrumb"><span>Workspace</span><span>/</span><strong>{activeNav}</strong></div><div className="topbar-actions"><div className="year-select"><span className="status-dot"></span>Tahun Ajaran {academicYear}<ChevronDown size={15} /></div><button className="icon-button" aria-label="Notifikasi"><Bell size={18} /><i /></button><div className="avatar">AR</div></div></header><div className="page-body"><div className="page-heading"><div><p className="eyebrow accent">{today}</p><h1>Selamat datang, Ahmad <span>✦</span></h1><div className="heading-meta"><p className="subheading">Pantau proses penerbitan ijazah pesantren dalam satu ruang.</p><span className={`sync-badge ${syncState}`}><i />{syncState === "demo" ? "Mode demo" : syncState === "connecting" ? "Menghubungkan Firebase" : syncState === "saving" ? "Menyimpan" : syncState === "saved" ? "Tersimpan" : syncState === "error" ? "Firebase bermasalah" : "Firebase tersinkron"}</span></div></div><button className="primary-button" onClick={() => setShowPreview(true)}><FileText size={17} /> Buat Ijazah Baru</button></div>
-        <section className="metrics-grid"><Metric icon={<Users />} label="Total Santri" value="128" delta="+12%" note="dari bulan lalu" tone="yellow" /><Metric icon={<FileCheck2 />} label="Ijazah Dibuat" value="96" delta="+8%" note="dari bulan lalu" tone="green" /><Metric icon={<Check />} label="Santri Lulus" value="91" delta="+5%" note="dari bulan lalu" tone="blue" /><Metric icon={<ClipboardList />} label="Menunggu Validasi" value="5" delta="Perlu ditinjau" note="segera" tone="orange" urgent /></section>
-        <section className="workflow-strip"><div className="workflow-title"><div className="step-badge"><Sparkles size={16} /></div><div><strong>Alur penerbitan ijazah</strong><span>Selesaikan 5 ijazah yang masih menunggu validasi</span></div></div><div className="progress-line"><div className="progress-done"></div></div><span className="progress-label">76% selesai</span><button className="text-button" onClick={() => setActiveNav("Ijazah")}>Lihat semua <span>→</span></button></section>
-        <div className="content-grid"><section className="panel students-panel"><div className="panel-header"><div><h2>Santri terbaru</h2><p>Daftar santri dan status ijazah tahun ini.</p></div><button className="ghost-button" onClick={() => setActiveNav("Data Santri")}>Lihat semua <span>→</span></button></div><div className="toolbar"><div className="search-box"><Search size={16} /><input placeholder="Cari nama santri..." value={search} onChange={(event) => setSearch(event.target.value)} /></div><button className="filter-button"><SlidersHorizontal size={15} /> Filter</button></div><div className="student-table"><div className="table-head"><span>Nama santri</span><span>Jenjang</span><span>Status</span><span>Nilai akhir</span><span></span></div>{filteredStudents.map((student) => <button className={`student-row ${selectedStudentId === student.id ? "selected" : ""}`} key={student.id} onClick={() => chooseStudent(student)}><span className="student-name"><span className={`avatar avatar-${student.tone}`}>{student.initials}</span><span><strong>{student.name}</strong><small>{student.id}</small></span></span><span className="level">{student.level}</span><span><em className={`status ${student.status === "Lulus" ? "success" : "pending"}`}><i />{student.status}</em></span><span className="table-score">{student.score}</span><MoreHorizontal size={17} className="muted-icon" /></button>)}</div></section>
-        <section className="panel grade-panel"><div className="panel-header"><div><h2>Input nilai</h2><p>{currentStudent.name} · {currentStudent.id}</p></div><button className="icon-button"><MoreHorizontal size={18} /></button></div><div className="grade-summary"><div><span>Nilai rata-rata</span><strong>{average}</strong><small className={passed ? "good" : "bad"}>{passed ? "Lulus" : "Belum lulus"} · {scoreWord(average)}</small></div><div className="ring" style={{ "--score": `${average * 3.6}deg` } as React.CSSProperties}><div><strong>{numberToArabic(average)}</strong><span>/ ١٠٠</span></div></div></div><div className="grade-list">{subjects.map((subject, index) => <label className="grade-row" key={subject}><span>{subject}</span><input aria-label={`Nilai ${subject}`} type="number" min="0" max="100" value={scores[index]} onChange={(event) => setScores(scores.map((score, scoreIndex) => scoreIndex === index ? Math.max(0, Math.min(100, Number(event.target.value))) : score))} /><span className="arabic-number">{numberToArabic(scores[index])}</span></label>)}</div><button className="save-button" disabled={syncState === "saving"} onClick={handleSave}><Check size={16} /> {syncState === "saving" ? "Menyimpan ke Firebase..." : "Simpan & lihat preview"}</button></section></div></div></section>
-      {showPreview && <div className="modal-backdrop" onClick={() => setShowPreview(false)}><section className="preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-title" onClick={(event) => event.stopPropagation()}><div className="preview-header"><div><p className="eyebrow accent">PREVIEW DOKUMEN</p><h2 id="preview-title">Ijazah {currentStudent.name}</h2><p>Siap ditinjau sebelum dicetak atau disimpan.</p></div><button className="close-button" aria-label="Tutup preview" onClick={() => setShowPreview(false)}><X size={20} /></button></div><div className="certificate-preview"><div className="cert-page cert-cover"><div className="cert-topline">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ</div><div className="cert-logo">✦</div><p className="cert-kicker">YAYASAN PENDIDIKAN ISLAM</p><h3>مَعْهَدُ التَّرْبِيَةِ الإِسْلَامِيَّةِ</h3><div className="cert-rule"></div><h4>شَهَادَةُ إِتْمَامِ الدِّرَاسَةِ</h4><p className="cert-copy">Dengan ini menerangkan bahwa:</p><strong className="cert-name">{currentStudent.name}</strong><p className="arabic-cert-name">{currentStudent.arabicName}</p><p className="cert-copy">telah menyelesaikan pendidikan dengan hasil</p><strong className="cert-result">{passed ? "نَاجِح" : "غَيْرُ نَاجِح"}</strong><div className="cert-footer"><span>Nomor: {currentStudent.id}</span><span>Jakarta, {today.toLowerCase().replace(/^\w+,\s*/, "")}<br /><b>Kepala Pesantren</b></span></div></div><div className="cert-page cert-transcript"><div className="cert-topline">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ</div><h4>كِشْفُ الدَّرَجَاتِ</h4><p className="transcript-sub">Daftar Nilai Ujian Akhir</p><div className="transcript-table"><div><b>No.</b><b>Mata Pelajaran</b><b>Nilai</b></div>{subjects.map((subject, index) => <div key={subject}><span>{index + 1}</span><span>{subject}</span><strong>{numberToArabic(scores[index])}</strong></div>)}<div className="total"><span></span><b>المجموع / Jumlah</b><strong>{numberToArabic(scores.reduce((sum, score) => sum + score, 0))}</strong></div></div><div className="transcript-average"><span>المعدل العام / Rata-rata</span><strong>{numberToArabic(average)} — {scoreWord(average)}</strong></div></div></div><div className="preview-actions"><button className="ghost-button" onClick={() => window.print()}><Printer size={16} /> Cetak A4</button><button className="primary-button" onClick={() => window.print()}><FileText size={16} /> Simpan sebagai PDF</button></div></section></div>}
-    </main>
-  );
+
+  return <main className="app-shell">
+    {mobileMenuOpen && <button className="sidebar-backdrop" aria-label="Tutup menu" onClick={() => setMobileMenuOpen(false)} />}
+    <aside className={`sidebar ${mobileMenuOpen ? "open" : ""}`} aria-label="Navigasi utama"><div className="brand"><div className="brand-mark"><Sparkles size={19} /></div><div><strong>E-SYAHADAH</strong><span>{institution.name}</span></div><button className="sidebar-close" aria-label="Tutup menu" onClick={() => setMobileMenuOpen(false)}><X size={18} /></button></div><div className="sidebar-section"><p className="eyebrow">WORKSPACE</p>{navItems.map(({ label, icon: Icon }) => <button key={label} className={`nav-item ${activeNav === label ? "active" : ""}`} onClick={() => navigate(label)}><Icon size={18} /><span>{label}</span>{label === "Ijazah" && pendingCount > 0 && <span className="nav-count">{pendingCount}</span>}</button>)}</div><div className="sidebar-section sidebar-bottom"><p className="eyebrow">KONFIGURASI</p><button className={`nav-item ${activeNav === "Mata Pelajaran" ? "active" : ""}`} onClick={() => navigate("Mata Pelajaran")}><BookOpen size={18} /><span>Mata Pelajaran</span></button><button className={`nav-item ${activeNav === "Pengaturan" ? "active" : ""}`} onClick={() => navigate("Pengaturan")}><Settings size={18} /><span>Pengaturan</span></button><div className="help-card"><GraduationCap size={18} /><strong>Butuh bantuan?</strong><span>Lengkapi data, nilai, lalu terbitkan ijazah.</span><button onClick={() => navigate("Ijazah")}>Lihat alur →</button></div></div><div className="profile"><div className="avatar small">AR</div><div><strong>{institution.principal}</strong><span>Administrator</span></div><MoreHorizontal size={18} className="muted-icon" /></div></aside>
+    <section className="main-content"><header className="topbar"><button className="mobile-menu" aria-label="Buka menu" onClick={() => setMobileMenuOpen(true)}><Menu size={20} /></button><div className="breadcrumb"><span>Workspace</span><span>/</span><strong>{activeNav}</strong></div><div className="topbar-actions"><div className="year-select"><span className="status-dot" />Tahun Ajaran {academicYear}<ChevronDown size={15} /></div><button className="icon-button" aria-label="Notifikasi"><Bell size={18} />{pendingCount > 0 && <i />}</button><div className="avatar">AR</div></div></header><div className="page-body"><PageHeading active={activeNav} syncState={syncState} onAdd={openAddStudent} onIssue={() => navigate("Ijazah")} />
+      {activeNav === "Dashboard" && <Dashboard students={students} current={currentStudent} subjects={subjects} scores={scores} average={average} passed={passed} issuedCount={issuedCount} passedCount={passedCount} pendingCount={pendingCount} progress={progress} search={search} setSearch={setSearch} choose={chooseStudent} navigate={navigate} />}
+      {activeNav === "Data Santri" && <StudentsView students={filteredStudents} search={search} setSearch={setSearch} showFilters={showFilters} setShowFilters={setShowFilters} levelFilter={levelFilter} setLevelFilter={setLevelFilter} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onAdd={openAddStudent} onEdit={openEditStudent} onDelete={removeStudent} />}
+      {activeNav === "Input Nilai" && <GradesView students={students} current={currentStudent} subjects={subjects} scores={scores} setScores={setScores} average={average} passed={passed} choose={chooseStudent} saveGrades={saveGrades} />}
+      {activeNav === "Ijazah" && <CertificatesView students={students} onPreview={(student) => { chooseStudent(student); setShowPreview(true); }} onIssue={issueCertificate} />}
+      {activeNav === "Mata Pelajaran" && <SubjectsView subjects={subjects} setSubjects={setSubjects} onSave={persistSubjects} />}
+      {activeNav === "Pengaturan" && <SettingsView value={settingsForm} setValue={setSettingsForm} onSave={persistSettings} />}
+    </div></section>
+    {studentForm && <StudentModal value={studentForm} setValue={setStudentForm} isNew={isNewStudent} onClose={() => setStudentForm(null)} onSubmit={submitStudent} />}
+    {showPreview && <CertificateModal student={currentStudent} scores={scores} subjects={subjects} institution={institution} average={average} passed={passed} onClose={() => setShowPreview(false)} />}
+    {toast && <div className="toast"><Check size={16} />{toast}</div>}
+  </main>;
 }
-function Metric({ icon, label, value, delta, note, tone, urgent = false }: { icon: React.ReactNode; label: string; value: string; delta: string; note: string; tone: string; urgent?: boolean }) { return <div className="metric-card"><div className={`metric-icon ${tone}`}>{icon}</div><div className="metric-copy"><span>{label}</span><strong>{value}</strong><small className={urgent ? "urgent" : "positive"}>{!urgent && <span>↗</span>} {delta} <i>{note}</i></small></div></div>; }
+
+function PageHeading({ active, syncState, onAdd, onIssue }: { active: string; syncState: string; onAdd: () => void; onIssue: () => void }) {
+  const copy: Record<string, [string, string]> = { Dashboard: ["Selamat datang, Ahmad", "Pantau penerbitan ijazah pesantren dalam satu ruang."], "Data Santri": ["Data santri", "Kelola identitas dan data akademik seluruh santri."], "Input Nilai": ["Input nilai", "Isi dan perbarui nilai ujian akhir setiap santri."], Ijazah: ["Penerbitan ijazah", "Validasi, pratinjau, dan cetak ijazah digital."], "Mata Pelajaran": ["Mata pelajaran", "Atur nama dan status pelajaran pada transkrip."], Pengaturan: ["Pengaturan pesantren", "Sesuaikan identitas yang tampil pada dokumen ijazah."] };
+  return <div className="page-heading"><div><p className="eyebrow accent">{today}</p><h1>{copy[active]?.[0]} <span>✦</span></h1><div className="heading-meta"><p className="subheading">{copy[active]?.[1]}</p><span className={`sync-badge ${syncState}`}><i />{syncState === "demo" ? "Mode demo" : syncState === "connecting" ? "Menghubungkan Firebase" : syncState === "saving" ? "Menyimpan" : syncState === "error" ? "Firebase bermasalah" : "Firebase tersinkron"}</span></div></div>{active === "Data Santri" ? <button className="primary-button" onClick={onAdd}><UserPlus size={17} />Tambah Santri</button> : active === "Dashboard" ? <button className="primary-button" onClick={onIssue}><FileText size={17} />Buat Ijazah Baru</button> : null}</div>;
+}
+
+function Dashboard(props: { students: Student[]; current: Student; subjects: Subject[]; scores: number[]; average: number; passed: boolean; issuedCount: number; passedCount: number; pendingCount: number; progress: number; search: string; setSearch: (v: string) => void; choose: (s: Student) => void; navigate: (v: string) => void }) {
+  return <><section className="metrics-grid"><Metric icon={<Users />} label="Total Santri" value={String(props.students.length)} note="terdaftar di Firestore" tone="yellow" /><Metric icon={<FileCheck2 />} label="Ijazah Terbit" value={String(props.issuedCount)} note="siap dicetak" tone="green" /><Metric icon={<Check />} label="Santri Lulus" value={String(props.passedCount)} note="nilai akhir ≥ 70" tone="blue" /><Metric icon={<ClipboardList />} label="Menunggu Validasi" value={String(props.pendingCount)} note="perlu diterbitkan" tone="orange" /></section><section className="workflow-strip"><div className="workflow-title"><div className="step-badge"><Sparkles size={16} /></div><div><strong>Alur penerbitan ijazah</strong><span>{props.pendingCount} ijazah masih menunggu validasi</span></div></div><div className="progress-line"><div className="progress-done" style={{ width: `${props.progress}%` }} /></div><span className="progress-label">{props.progress}% selesai</span><button className="text-button" onClick={() => props.navigate("Ijazah")}>Lihat semua →</button></section><div className="content-grid"><section className="panel students-panel"><PanelHeader title="Santri terbaru" subtitle="Data realtime tahun ajaran ini." action={<button className="ghost-button" onClick={() => props.navigate("Data Santri")}>Lihat semua →</button>} /><SearchBox value={props.search} onChange={props.setSearch} /><StudentTable students={props.students.filter((s) => s.name.toLowerCase().includes(props.search.toLowerCase())).slice(0, 5)} selectedId={props.current.id} onSelect={props.choose} /></section><GradePanel current={props.current} subjects={props.subjects} scores={props.scores} setScores={() => undefined} average={props.average} passed={props.passed} readOnly onSave={() => props.navigate("Input Nilai")} /></div></>;
+}
+
+function StudentsView(props: { students: Student[]; search: string; setSearch: (v: string) => void; showFilters: boolean; setShowFilters: (v: boolean) => void; levelFilter: string; setLevelFilter: (v: string) => void; statusFilter: string; setStatusFilter: (v: string) => void; onAdd: () => void; onEdit: (s: Student) => void; onDelete: (s: Student) => void }) {
+  return <section className="panel full-panel"><PanelHeader title={`${props.students.length} santri ditemukan`} subtitle="Klik edit untuk memperbarui identitas santri." action={<button className="primary-button compact" onClick={props.onAdd}><Plus size={15} />Tambah</button>} /><div className="toolbar"><div className="search-box"><Search size={16} /><input aria-label="Cari santri" placeholder="Cari nama atau nomor syahadah..." value={props.search} onChange={(e) => props.setSearch(e.target.value)} /></div><button className={`filter-button ${props.showFilters ? "active" : ""}`} onClick={() => props.setShowFilters(!props.showFilters)}><SlidersHorizontal size={15} />Filter</button></div>{props.showFilters && <div className="filter-row"><label>Jenjang<select value={props.levelFilter} onChange={(e) => props.setLevelFilter(e.target.value)}><option>Semua</option><option>Ulya</option><option>Wustha</option><option>Ula</option></select></label><label>Status<select value={props.statusFilter} onChange={(e) => props.setStatusFilter(e.target.value)}><option>Semua</option><option>Lulus</option><option>Proses</option></select></label></div>}<div className="manage-table"><div className="manage-head"><span>Santri</span><span>NISN</span><span>Jenjang</span><span>Status</span><span>Nilai</span><span>Aksi</span></div>{props.students.map((student) => <div className="manage-row" key={student.id}><StudentIdentity student={student} /><span>{student.nisn || "—"}</span><span>{student.level}</span><StatusBadge status={student.status} /><strong>{student.score}</strong><span className="row-actions"><button aria-label={`Edit ${student.name}`} onClick={() => props.onEdit(student)}><Pencil size={15} /></button><button className="danger" aria-label={`Hapus ${student.name}`} onClick={() => props.onDelete(student)}><Trash2 size={15} /></button></span></div>)}</div>{!props.students.length && <EmptyState title="Santri tidak ditemukan" text="Ubah kata pencarian atau tambahkan santri baru." />}</section>;
+}
+
+function GradesView(props: { students: Student[]; current: Student; subjects: Subject[]; scores: number[]; setScores: (v: number[]) => void; average: number; passed: boolean; choose: (s: Student) => void; saveGrades: () => void }) {
+  return <div className="grade-workspace"><section className="panel student-picker"><PanelHeader title="Pilih santri" subtitle={`${props.students.length} santri tersedia`} />{props.students.map((student) => <button key={student.id} className={`picker-row ${student.id === props.current.id ? "selected" : ""}`} onClick={() => props.choose(student)}><StudentIdentity student={student} /><strong>{student.score}</strong></button>)}</section><GradePanel current={props.current} subjects={props.subjects} scores={props.scores} setScores={props.setScores} average={props.average} passed={props.passed} onSave={props.saveGrades} /></div>;
+}
+
+function CertificatesView({ students, onPreview, onIssue }: { students: Student[]; onPreview: (s: Student) => void; onIssue: (s: Student) => void }) {
+  return <section className="panel full-panel"><PanelHeader title="Daftar ijazah" subtitle="Ijazah hanya dapat diterbitkan untuk santri berstatus lulus." /><div className="certificate-grid">{students.map((student) => <article className="certificate-card" key={student.id}><div className="certificate-card-icon"><Award size={22} /></div><StudentIdentity student={student} /><div className="certificate-card-meta"><span>Nilai akhir <b>{student.score}</b></span><span className={`issue-status ${student.certificateStatus === "Terbit" ? "issued" : ""}`}>{student.certificateStatus === "Terbit" ? "Sudah terbit" : "Belum terbit"}</span></div><div className="certificate-card-actions">{student.certificateStatus === "Terbit" && <button className="ghost-action" onClick={() => onPreview(student)}><Eye size={15} />Preview</button>}<button className="primary-button compact" disabled={student.status !== "Lulus"} onClick={() => onIssue(student)}><FileCheck2 size={15} />{student.certificateStatus === "Terbit" ? "Terbitkan ulang" : "Terbitkan"}</button></div></article>)}</div></section>;
+}
+
+function SubjectsView({ subjects, setSubjects, onSave }: { subjects: Subject[]; setSubjects: (s: Subject[]) => void; onSave: () => void }) {
+  return <section className="panel settings-panel"><PanelHeader title="Daftar mata pelajaran" subtitle="Urutan ini digunakan pada input nilai dan transkrip ijazah." action={<button className="primary-button compact" onClick={onSave}><Save size={15} />Simpan</button>} /><div className="subject-list"><div className="subject-head"><span>No.</span><span>Nama pelajaran</span><span>Nama Arab</span><span>Aktif</span></div>{subjects.map((subject, index) => <div className="subject-row" key={subject.id}><strong>{index + 1}</strong><input value={subject.name} onChange={(e) => setSubjects(subjects.map((item) => item.id === subject.id ? { ...item, name: e.target.value } : item))} /><input dir="rtl" value={subject.arabicName} onChange={(e) => setSubjects(subjects.map((item) => item.id === subject.id ? { ...item, arabicName: e.target.value } : item))} /><label className="switch"><input type="checkbox" checked={subject.active} onChange={(e) => setSubjects(subjects.map((item) => item.id === subject.id ? { ...item, active: e.target.checked } : item))} /><span /></label></div>)}</div></section>;
+}
+
+function SettingsView({ value, setValue, onSave }: { value: InstitutionSettings; setValue: (v: InstitutionSettings) => void; onSave: (e: FormEvent) => void }) {
+  const field = (key: keyof InstitutionSettings, label: string, dir?: "rtl") => <label className="form-field"><span>{label}</span><input dir={dir} value={value[key]} onChange={(e) => setValue({ ...value, [key]: e.target.value })} required /></label>;
+  return <section className="panel settings-panel"><PanelHeader title="Identitas lembaga" subtitle="Informasi ini otomatis tampil pada ijazah yang diterbitkan." /><form className="settings-form" onSubmit={onSave}>{field("foundation", "Nama yayasan")}{field("name", "Nama pesantren")}{field("arabicName", "Nama pesantren (Arab)", "rtl")}{field("principal", "Nama kepala pesantren")}{field("city", "Kota penerbitan")}{field("address", "Alamat lengkap")}<button className="primary-button" type="submit"><Save size={16} />Simpan Pengaturan</button></form></section>;
+}
+
+function GradePanel({ current, subjects, scores, setScores, average, passed, onSave, readOnly = false }: { current: Student; subjects: Subject[]; scores: number[]; setScores: (v: number[]) => void; average: number; passed: boolean; onSave: () => void; readOnly?: boolean }) {
+  return <section className="panel grade-panel"><PanelHeader title="Input nilai" subtitle={`${current.name} · ${current.id}`} /><div className="grade-summary"><div><span>Nilai rata-rata</span><strong>{average}</strong><small className={passed ? "good" : "bad"}>{passed ? "Lulus" : "Belum lulus"} · {scoreWord(average)}</small></div><div className="ring" style={{ "--score": `${average * 3.6}deg` } as React.CSSProperties}><div><strong>{numberToArabic(average)}</strong><span>/ ١٠٠</span></div></div></div><div className="grade-list">{subjects.filter((subject) => subject.active).map((subject) => <label className="grade-row" key={subject.id}><span>{subject.name}<small>{subject.arabicName}</small></span><input aria-label={`Nilai ${subject.name}`} disabled={readOnly} type="number" min="0" max="100" value={scores[subject.order] ?? 0} onChange={(e) => setScores(scores.map((score, index) => index === subject.order ? Math.max(0, Math.min(100, Number(e.target.value))) : score))} /><span className="arabic-number">{numberToArabic(scores[subject.order] ?? 0)}</span></label>)}</div><button className="save-button" onClick={onSave}>{readOnly ? <><Pencil size={16} />Buka input nilai</> : <><Check size={16} />Simpan nilai</>}</button></section>;
+}
+
+function StudentModal({ value, setValue, isNew, onClose, onSubmit }: { value: Student; setValue: (v: Student) => void; isNew: boolean; onClose: () => void; onSubmit: (e: FormEvent) => void }) {
+  const field = (key: keyof Student, label: string, type = "text", dir?: "rtl") => <label className="form-field"><span>{label}</span><input type={type} dir={dir} disabled={key === "id" && !isNew} value={String(value[key] ?? "")} onChange={(e) => setValue({ ...value, [key]: e.target.value })} required={key === "name" || key === "id"} /></label>;
+  return <div className="modal-backdrop" onClick={onClose}><section className="form-modal" role="dialog" aria-modal="true" aria-labelledby="student-modal-title" onClick={(e) => e.stopPropagation()}><div className="preview-header"><div><p className="eyebrow accent">DATA SANTRI</p><h2 id="student-modal-title">{isNew ? "Tambah santri baru" : `Edit ${value.name}`}</h2><p>Lengkapi identitas untuk penerbitan ijazah.</p></div><button className="close-button" aria-label="Tutup" onClick={onClose}><X size={20} /></button></div><form className="student-form" onSubmit={onSubmit}>{field("id", "Nomor syahadah")}{field("nisn", "NISN")}{field("name", "Nama lengkap")}{field("arabicName", "Nama dalam bahasa Arab", "text", "rtl")}{field("birthPlace", "Tempat lahir")}{field("birthDate", "Tanggal lahir", "date")}{field("guardian", "Nama wali")}<label className="form-field"><span>Jenjang</span><select value={value.level} onChange={(e) => setValue({ ...value, level: e.target.value })}><option>Ula</option><option>Wustha</option><option>Ulya</option></select></label><div className="form-actions"><button type="button" className="ghost-action" onClick={onClose}>Batal</button><button type="submit" className="primary-button"><Save size={16} />Simpan Data</button></div></form></section></div>;
+}
+
+function CertificateModal({ student, scores, subjects, institution, average, passed, onClose }: { student: Student; scores: number[]; subjects: Subject[]; institution: InstitutionSettings; average: number; passed: boolean; onClose: () => void }) {
+  return <div className="modal-backdrop" onClick={onClose}><section className="preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-title" onClick={(e) => e.stopPropagation()}><div className="preview-header"><div><p className="eyebrow accent">PREVIEW DOKUMEN</p><h2 id="preview-title">Ijazah {student.name}</h2><p>Periksa dokumen sebelum dicetak atau disimpan sebagai PDF.</p></div><button className="close-button" aria-label="Tutup preview" onClick={onClose}><X size={20} /></button></div><div className="certificate-preview"><div className="cert-page cert-cover"><div className="cert-topline">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ</div><div className="cert-logo">✦</div><p className="cert-kicker">{institution.foundation.toUpperCase()}</p><h3>{institution.arabicName}</h3><p className="cert-school">{institution.name}</p><div className="cert-rule" /><h4>شَهَادَةُ إِتْمَامِ الدِّرَاسَةِ</h4><p className="cert-copy">Dengan ini menerangkan bahwa:</p><strong className="cert-name">{student.name}</strong><p className="arabic-cert-name">{student.arabicName}</p><p className="cert-copy">telah menyelesaikan pendidikan dengan hasil</p><strong className={`cert-result ${passed ? "" : "failed"}`}>{passed ? "نَاجِح" : "غَيْرُ نَاجِح"}</strong><div className="cert-footer"><span>Nomor: {student.id}<br />NISN: {student.nisn || "—"}</span><span>{institution.city}, {today.toLowerCase().replace(/^\w+,\s*/, "")}<br /><b>{institution.principal}</b></span></div></div><div className="cert-page cert-transcript"><div className="cert-topline">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ</div><h4>كِشْفُ الدَّرَجَاتِ</h4><p className="transcript-sub">Daftar Nilai Ujian Akhir · {academicYear}</p><div className="transcript-table"><div><b>No.</b><b>Mata Pelajaran</b><b>Nilai</b></div>{subjects.filter((s) => s.active).map((subject, index) => <div key={subject.id}><span>{index + 1}</span><span>{subject.name}</span><strong>{numberToArabic(scores[subject.order] ?? 0)}</strong></div>)}<div className="total"><span /><b>المجموع / Jumlah</b><strong>{numberToArabic(scores.reduce((sum, score) => sum + score, 0))}</strong></div></div><div className="transcript-average"><span>المعدل العام / Rata-rata</span><strong>{numberToArabic(average)} — {scoreWord(average)}</strong></div></div></div><div className="preview-actions"><button className="ghost-action" onClick={() => window.print()}><Printer size={16} />Cetak A4</button><button className="primary-button" onClick={() => window.print()}><FileText size={16} />Simpan sebagai PDF</button></div></section></div>;
+}
+
+function PanelHeader({ title, subtitle, action }: { title: string; subtitle: string; action?: ReactNode }) { return <div className="panel-header"><div><h2>{title}</h2><p>{subtitle}</p></div>{action}</div>; }
+function SearchBox({ value, onChange }: { value: string; onChange: (v: string) => void }) { return <div className="toolbar"><div className="search-box"><Search size={16} /><input aria-label="Cari santri" placeholder="Cari nama santri..." value={value} onChange={(e) => onChange(e.target.value)} /></div></div>; }
+function StudentIdentity({ student }: { student: Student }) { return <span className="student-name"><span className={`avatar avatar-${student.tone}`}>{student.initials}</span><span><strong>{student.name}</strong><small>{student.id}</small></span></span>; }
+function StatusBadge({ status }: { status: Student["status"] }) { return <em className={`status ${status === "Lulus" ? "success" : "pending"}`}><i />{status}</em>; }
+function StudentTable({ students, selectedId, onSelect }: { students: Student[]; selectedId: string; onSelect: (s: Student) => void }) { return <div className="student-table"><div className="table-head"><span>Nama santri</span><span>Jenjang</span><span>Status</span><span>Nilai akhir</span><span /></div>{students.map((student) => <button className={`student-row ${selectedId === student.id ? "selected" : ""}`} key={student.id} onClick={() => onSelect(student)}><StudentIdentity student={student} /><span className="level">{student.level}</span><StatusBadge status={student.status} /><span className="table-score">{student.score}</span><MoreHorizontal size={17} className="muted-icon" /></button>)}</div>; }
+function Metric({ icon, label, value, note, tone }: { icon: ReactNode; label: string; value: string; note: string; tone: string }) { return <div className="metric-card"><div className={`metric-icon ${tone}`}>{icon}</div><div className="metric-copy"><span>{label}</span><strong>{value}</strong><small>{note}</small></div></div>; }
+function EmptyState({ title, text }: { title: string; text: string }) { return <div className="empty-state"><Search size={24} /><strong>{title}</strong><span>{text}</span></div>; }

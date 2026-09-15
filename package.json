@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "firebase:seed": "node scripts/seed-firebase.mjs",
+    "firebase:test": "node scripts/test-firebase.mjs",
     "start": "next start",
     "lint": "eslint"
   },

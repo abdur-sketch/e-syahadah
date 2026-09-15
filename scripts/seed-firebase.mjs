@@ -26,6 +26,20 @@ const students = [
   { name: "Nurul Hidayah", arabicName: "نور الهداية", initials: "NH", id: "SYH-2026-004", level: "Ulya", status: "Lulus", score: 88, tone: "peach", scores: [88, 90, 84, 92, 86, 87, 89, 91, 85, 90, 86] },
   { name: "Abdullah Fikri", arabicName: "عبد الله فكري", initials: "AF", id: "SYH-2026-005", level: "Ulya", status: "Lulus", score: 83, tone: "sky", scores: [82, 85, 80, 86, 84, 79, 83, 87, 81, 85, 82] },
 ];
+const profileData = [
+  ["0061234501", "Jakarta", "2006-04-12", "Abdul Karim", "Belum"],
+  ["0061234502", "Bandung", "2006-08-21", "Hasan Basri", "Terbit"],
+  ["0071234503", "Bogor", "2007-01-17", "Fahmi Idris", "Belum"],
+  ["0061234504", "Bekasi", "2006-11-02", "Muhammad Ilyas", "Terbit"],
+  ["0061234505", "Depok", "2006-06-09", "Syamsul Arifin", "Belum"],
+];
+const subjects = [
+  ["tauhid", "Tauhid", "التوحيد"], ["akhlak", "Akhlak", "الأخلاق"], ["tafsir", "Tafsir", "التفسير"],
+  ["hadits", "Hadits", "الحديث"], ["fikih", "Fikih", "الفقه"], ["nahwu", "Nahwu", "النحو"],
+  ["shorof", "Shorof", "الصرف"], ["bahasa-arab", "Bahasa Arab", "اللغة العربية"],
+  ["tarikh-islam", "Tarikh Islam", "التاريخ الإسلامي"], ["tajwid", "Tajwid", "التجويد"],
+  ["imla-khat", "Imla' & Khat", "الإملاء والخط"],
+];
 
 const app = initializeApp(config);
 const auth = getAuth(app);
@@ -33,17 +47,26 @@ const db = getFirestore(app);
 await signInAnonymously(auth);
 
 const batch = writeBatch(db);
-for (const student of students) {
+for (const [index, student] of students.entries()) {
+  const [nisn, birthPlace, birthDate, guardian, certificateStatus] = profileData[index];
   batch.set(doc(db, "students", student.id), {
-    ...student,
+    ...student, nisn, birthPlace, birthDate, guardian, certificateStatus,
     academicYear: "2026/2027",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   }, { merge: true });
 }
+for (const [order, [id, name, arabicName]] of subjects.entries()) {
+  batch.set(doc(db, "subjects", id), { id, name, arabicName, order, active: true, updatedAt: serverTimestamp() }, { merge: true });
+}
+batch.set(doc(db, "settings", "institution"), {
+  name: "Pesantren Digital", arabicName: "مَعْهَدُ التَّرْبِيَةِ الإِسْلَامِيَّةِ",
+  foundation: "Yayasan Pendidikan Islam", city: "Jakarta", principal: "Ahmad Rasyid",
+  address: "Jl. Pendidikan Islam No. 1", updatedAt: serverTimestamp(),
+}, { merge: true });
 await batch.commit();
 
-const snapshot = await getDocs(collection(db, "students"));
-console.log(`Firebase siap: ${snapshot.size} dokumen santri terverifikasi.`);
+const [studentSnapshot, subjectSnapshot] = await Promise.all([getDocs(collection(db, "students")), getDocs(collection(db, "subjects"))]);
+console.log(`Firebase siap: ${studentSnapshot.size} santri dan ${subjectSnapshot.size} mata pelajaran terverifikasi.`);
 await signOut(auth);
 await terminate(db);
