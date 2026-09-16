@@ -34,6 +34,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 - Metrik dashboard dihitung langsung dari data Firestore.
 - CRUD data santri lengkap dengan pencarian dan filter.
 - Input nilai realtime untuk setiap mata pelajaran.
+- Workspace E-Raport dengan filter semester/jenjang, tahapan kerja, KKM, predikat otomatis, validasi kelengkapan, dan pratinjau dokumen.
 - Penerbitan, pratinjau, cetak A4, dan simpan PDF ijazah.
 - Pengelolaan nama mata pelajaran Indonesia/Arab dan status aktif.
 - Pengaturan identitas yayasan, pesantren, kota, dan kepala pesantren.
