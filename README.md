@@ -24,6 +24,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 ## Fitur MVP saat ini
 
 - Dashboard metrik santri, ijazah, kelulusan, dan validasi.
+- Dashboard modern bergaya portal sekolah dengan grafik progres, kalender, agenda, profil, aksi cepat, serta mode terang/gelap yang tersimpan otomatis.
 - Pencarian dan pemilihan santri demo.
 - Input nilai 0-100 untuk 11 mata pelajaran diniyah.
 - Perhitungan rata-rata, predikat, dan status lulus secara live.
