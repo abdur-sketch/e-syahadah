@@ -39,5 +39,24 @@ service cloud.firestore {
         && request.resource.data.principal is string
         && request.resource.data.arabicAddress is string;
     }
+
+    match /settings/certificate-template {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+        && request.resource.data.logoDataUrl is string
+        && request.resource.data.logoDataUrl.size() <= 400000
+        && request.resource.data.watermarkDataUrl is string
+        && request.resource.data.watermarkDataUrl.size() <= 400000
+        && request.resource.data.watermarkOpacity is number
+        && request.resource.data.watermarkOpacity >= 0.02
+        && request.resource.data.watermarkOpacity <= 0.3
+        && request.resource.data.logoSize is number
+        && request.resource.data.logoSize >= 6
+        && request.resource.data.logoSize <= 24
+        && request.resource.data.watermarkSize is number
+        && request.resource.data.watermarkSize >= 20
+        && request.resource.data.watermarkSize <= 75
+        && request.resource.data.positions is map;
+    }
   }
 }

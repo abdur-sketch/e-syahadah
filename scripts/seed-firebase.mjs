@@ -65,6 +65,16 @@ batch.set(doc(db, "settings", "institution"), {
   city: "Jakarta", principal: "Ahmad Rasyid", address: "Jl. Pendidikan Islam No. 1",
   arabicAddress: "جَاكَرْتَا - إِنْدُونِيْسِيَا", updatedAt: serverTimestamp(),
 }, { merge: true });
+batch.set(doc(db, "settings", "certificate-template"), {
+  logoDataUrl: "", watermarkDataUrl: "", watermarkOpacity: 0.07, logoSize: 12, watermarkSize: 44,
+  positions: {
+    coverLogo: { x: 50, y: 8 }, coverWatermark: { x: 50, y: 52 }, coverTitle: { x: 50, y: 17 }, coverInstitution: { x: 50, y: 25 },
+    coverYear: { x: 50, y: 31 }, coverOpening: { x: 50, y: 38 }, coverStudent: { x: 58, y: 48 },
+    coverDecision: { x: 50, y: 61 }, coverPhoto: { x: 18, y: 82 }, coverSignature: { x: 69, y: 82 },
+    transcriptLogo: { x: 12, y: 9 }, transcriptWatermark: { x: 50, y: 54 }, transcriptTitle: { x: 50, y: 10 }, transcriptStudent: { x: 68, y: 18 }, transcriptTable: { x: 50, y: 53 },
+    transcriptSignature: { x: 50, y: 90 },
+  }, updatedAt: serverTimestamp(),
+}, { merge: true });
 await batch.commit();
 
 const [studentSnapshot, subjectSnapshot] = await Promise.all([getDocs(collection(db, "students")), getDocs(collection(db, "subjects"))]);

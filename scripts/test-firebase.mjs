@@ -28,7 +28,12 @@ if ((await getDoc(testRef)).data()?.guardian !== "Wali Uji") throw new Error("Up
 await deleteDoc(testRef);
 if ((await getDoc(testRef)).exists()) throw new Error("Delete Firestore gagal.");
 if (!(await getDoc(doc(db, "settings", "institution"))).exists()) throw new Error("Pengaturan lembaga belum tersedia.");
+const templateRef = doc(db, "settings", "certificate-template");
+const templateSnapshot = await getDoc(templateRef);
+if (!templateSnapshot.exists()) throw new Error("Template ijazah belum tersedia.");
+await updateDoc(templateRef, { watermarkOpacity: 0.07 });
+if ((await getDoc(templateRef)).data()?.watermarkOpacity !== 0.07) throw new Error("Penyimpanan desain ijazah gagal.");
 
-console.log("Smoke test Firebase lulus: create, read, update, delete, dan settings.");
+console.log("Smoke test Firebase lulus: CRUD santri, settings, dan desain ijazah.");
 await signOut(auth);
 await terminate(db);
