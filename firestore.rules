@@ -57,7 +57,8 @@ service cloud.firestore {
         && request.resource.data.watermarkSize >= 20
         && request.resource.data.watermarkSize <= 75
         && request.resource.data.positions is map
-        && request.resource.data.texts is map;
+        && request.resource.data.texts is map
+        && request.resource.data.styles is map;
     }
   }
 }

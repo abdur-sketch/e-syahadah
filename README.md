@@ -38,7 +38,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 - Penerbitan, pratinjau, cetak A4, dan simpan PDF ijazah.
 - Pengelolaan nama mata pelajaran Indonesia/Arab dan status aktif.
 - Pengaturan identitas yayasan, pesantren, kota, dan kepala pesantren.
-- Editor desain dua halaman: edit isi teks dengan variabel data otomatis, geser posisinya, unggah logo sekolah dan watermark, lalu simpan ke Firebase.
+- Editor desain dua halaman: edit isi teks, jenis font, ukuran per elemen, variabel data otomatis, posisi, logo sekolah, dan watermark; seluruh desain tersimpan di Firebase.
 - Notifikasi hasil operasi serta validasi data dasar.
 
 Data santri dan nilai sudah terintegrasi dengan Firebase Authentication anonim dan Cloud Firestore. Tanpa konfigurasi Firebase, aplikasi otomatis memakai state demo di browser.

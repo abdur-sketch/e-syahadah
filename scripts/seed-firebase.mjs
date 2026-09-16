@@ -87,6 +87,15 @@ batch.set(doc(db, "settings", "certificate-template"), {
     transcriptStudent: "اسم الطالب|{{nama_arab}}\nالمولود في|{{tempat_lahir}}، {{tanggal_lahir}}\nرقم القيد|{{nomor_induk}}",
     transcriptTable: "رقم|المواد الدراسية|رقماً|كتابة|الملاحظة\nمجموع الدرجات|النسبة المئوية|النتيجة|بتقدير",
     transcriptSignature: "مدير المعهد\n{{kepala_sekolah}}",
+  },
+  styles: {
+    coverWatermark: { fontFamily: "Times New Roman", fontSize: 16 }, coverTitle: { fontFamily: "Times New Roman", fontSize: 52 },
+    coverInstitution: { fontFamily: "Times New Roman", fontSize: 12 }, coverYear: { fontFamily: "Times New Roman", fontSize: 11 },
+    coverOpening: { fontFamily: "Times New Roman", fontSize: 10 }, coverStudent: { fontFamily: "Times New Roman", fontSize: 10 },
+    coverDecision: { fontFamily: "Times New Roman", fontSize: 10 }, coverPhoto: { fontFamily: "Times New Roman", fontSize: 10 },
+    coverSignature: { fontFamily: "Times New Roman", fontSize: 10 }, transcriptWatermark: { fontFamily: "Times New Roman", fontSize: 16 },
+    transcriptTitle: { fontFamily: "Times New Roman", fontSize: 24 }, transcriptStudent: { fontFamily: "Times New Roman", fontSize: 9 },
+    transcriptTable: { fontFamily: "Times New Roman", fontSize: 8 }, transcriptSignature: { fontFamily: "Times New Roman", fontSize: 11 },
   }, updatedAt: serverTimestamp(),
 }, { merge: true });
 await batch.commit();

@@ -32,6 +32,7 @@ const templateRef = doc(db, "settings", "certificate-template");
 const templateSnapshot = await getDoc(templateRef);
 if (!templateSnapshot.exists()) throw new Error("Template ijazah belum tersedia.");
 if (!templateSnapshot.data()?.texts?.coverTitle) throw new Error("Teks template ijazah belum tersedia.");
+if (!templateSnapshot.data()?.styles?.coverTitle?.fontSize) throw new Error("Pengaturan font template belum tersedia.");
 await updateDoc(templateRef, { watermarkOpacity: 0.07 });
 if ((await getDoc(templateRef)).data()?.watermarkOpacity !== 0.07) throw new Error("Penyimpanan desain ijazah gagal.");
 

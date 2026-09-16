@@ -2,6 +2,7 @@ import { doc, onSnapshot, serverTimestamp, setDoc, type Unsubscribe } from "fire
 import { ensureFirebaseAuth, firestore } from "@/lib/firebase";
 
 export type TemplatePosition = { x: number; y: number };
+export type TemplateTextStyle = { fontFamily: string; fontSize: number };
 export type TemplateElementId =
   | "coverLogo" | "coverWatermark" | "coverTitle" | "coverInstitution" | "coverYear" | "coverOpening"
   | "coverStudent" | "coverDecision" | "coverPhoto" | "coverSignature"
@@ -15,6 +16,7 @@ export type CertificateTemplate = {
   watermarkSize: number;
   positions: Record<TemplateElementId, TemplatePosition>;
   texts: Partial<Record<TemplateElementId, string>>;
+  styles: Partial<Record<TemplateElementId, TemplateTextStyle>>;
 };
 
 export const templateLabels: Record<TemplateElementId, string> = {
@@ -54,6 +56,15 @@ export const defaultTemplate: CertificateTemplate = {
     transcriptTable: "رقم|المواد الدراسية|رقماً|كتابة|الملاحظة\nمجموع الدرجات|النسبة المئوية|النتيجة|بتقدير",
     transcriptSignature: "مدير المعهد\n{{kepala_sekolah}}",
   },
+  styles: {
+    coverWatermark: { fontFamily: "Times New Roman", fontSize: 16 }, coverTitle: { fontFamily: "Times New Roman", fontSize: 52 },
+    coverInstitution: { fontFamily: "Times New Roman", fontSize: 12 }, coverYear: { fontFamily: "Times New Roman", fontSize: 11 },
+    coverOpening: { fontFamily: "Times New Roman", fontSize: 10 }, coverStudent: { fontFamily: "Times New Roman", fontSize: 10 },
+    coverDecision: { fontFamily: "Times New Roman", fontSize: 10 }, coverPhoto: { fontFamily: "Times New Roman", fontSize: 10 },
+    coverSignature: { fontFamily: "Times New Roman", fontSize: 10 }, transcriptWatermark: { fontFamily: "Times New Roman", fontSize: 16 },
+    transcriptTitle: { fontFamily: "Times New Roman", fontSize: 24 }, transcriptStudent: { fontFamily: "Times New Roman", fontSize: 9 },
+    transcriptTable: { fontFamily: "Times New Roman", fontSize: 8 }, transcriptSignature: { fontFamily: "Times New Roman", fontSize: 11 },
+  },
 };
 
 async function ensureReady() {
@@ -66,7 +77,7 @@ export async function subscribeToTemplate(onData: (template: CertificateTemplate
   return onSnapshot(doc(firestore!, "settings", "certificate-template"), (snapshot) => {
     if (!snapshot.exists()) return onData(defaultTemplate);
     const data = snapshot.data() as Partial<CertificateTemplate>;
-    onData({ ...defaultTemplate, ...data, positions: { ...defaultTemplate.positions, ...(data.positions ?? {}) }, texts: { ...defaultTemplate.texts, ...(data.texts ?? {}) } });
+    onData({ ...defaultTemplate, ...data, positions: { ...defaultTemplate.positions, ...(data.positions ?? {}) }, texts: { ...defaultTemplate.texts, ...(data.texts ?? {}) }, styles: { ...defaultTemplate.styles, ...(data.styles ?? {}) } });
   }, onError);
 }
 
