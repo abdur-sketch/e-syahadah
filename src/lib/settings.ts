@@ -5,18 +5,22 @@ export type InstitutionSettings = {
   name: string;
   arabicName: string;
   foundation: string;
+  arabicFoundation: string;
   city: string;
   principal: string;
   address: string;
+  arabicAddress: string;
 };
 
 export const defaultSettings: InstitutionSettings = {
   name: "Pesantren Digital",
   arabicName: "مَعْهَدُ التَّرْبِيَةِ الإِسْلَامِيَّةِ",
   foundation: "Yayasan Pendidikan Islam",
+  arabicFoundation: "مُؤَسَّسَةُ التَّرْبِيَةِ الإِسْلَامِيَّةِ",
   city: "Jakarta",
   principal: "Ahmad Rasyid",
   address: "Jl. Pendidikan Islam No. 1",
+  arabicAddress: "جَاكَرْتَا - إِنْدُونِيْسِيَا",
 };
 
 async function ensureSignedIn() {

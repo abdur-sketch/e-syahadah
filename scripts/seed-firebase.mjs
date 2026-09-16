@@ -61,8 +61,9 @@ for (const [order, [id, name, arabicName]] of subjects.entries()) {
 }
 batch.set(doc(db, "settings", "institution"), {
   name: "Pesantren Digital", arabicName: "مَعْهَدُ التَّرْبِيَةِ الإِسْلَامِيَّةِ",
-  foundation: "Yayasan Pendidikan Islam", city: "Jakarta", principal: "Ahmad Rasyid",
-  address: "Jl. Pendidikan Islam No. 1", updatedAt: serverTimestamp(),
+  foundation: "Yayasan Pendidikan Islam", arabicFoundation: "مُؤَسَّسَةُ التَّرْبِيَةِ الإِسْلَامِيَّةِ",
+  city: "Jakarta", principal: "Ahmad Rasyid", address: "Jl. Pendidikan Islam No. 1",
+  arabicAddress: "جَاكَرْتَا - إِنْدُونِيْسِيَا", updatedAt: serverTimestamp(),
 }, { merge: true });
 await batch.commit();
 

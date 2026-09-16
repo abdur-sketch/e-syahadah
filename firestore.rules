@@ -34,8 +34,10 @@ service cloud.firestore {
         && request.resource.data.name is string
         && request.resource.data.arabicName is string
         && request.resource.data.foundation is string
+        && request.resource.data.arabicFoundation is string
         && request.resource.data.city is string
-        && request.resource.data.principal is string;
+        && request.resource.data.principal is string
+        && request.resource.data.arabicAddress is string;
     }
   }
 }
