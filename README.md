@@ -29,6 +29,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 - Perhitungan rata-rata, predikat, dan status lulus secara live.
 - Konversi angka ke angka Arab (`84` menjadi `٨٤`) dan redaksi hasil Arab.
 - Preview ijazah dua halaman: syahadah dan daftar nilai.
+- Bingkai arabesque hitam berbasis SVG pada kedua halaman, tetap tajam saat dicetak A4.
 - Print A4 / simpan sebagai PDF melalui dialog print browser.
 - Layout responsif untuk desktop dan mobile.
 - Metrik dashboard dihitung langsung dari data Firestore.
