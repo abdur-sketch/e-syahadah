@@ -203,8 +203,28 @@ function scoreArabicWords(value: number) {
 
 function TemplateBlock({ id, template, editable, selected, onSelect, onMove, children }: { id: TemplateElementId; template: CertificateTemplate; editable?: boolean; selected?: TemplateElementId; onSelect?: (id: TemplateElementId) => void; onMove?: (id: TemplateElementId, x: number, y: number) => void; children: ReactNode }) {
   const position = template.positions[id];
-  function move(event: React.PointerEvent<HTMLDivElement>) { if (!editable || !onMove) return; const rect = event.currentTarget.parentElement!.getBoundingClientRect(); onMove(id, ((event.clientX - rect.left) / rect.width) * 100, ((event.clientY - rect.top) / rect.height) * 100); }
-  return <div className={`template-block ${id} ${editable ? "editable" : ""} ${selected === id ? "selected" : ""}`} style={{ left: `${position.x}%`, top: `${position.y}%` }} onClick={(event) => { if (editable) { event.stopPropagation(); onSelect?.(id); } }} onPointerDown={(event) => { if (editable) { event.currentTarget.setPointerCapture(event.pointerId); move(event); onSelect?.(id); } }} onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) move(event); }} onPointerUp={(event) => event.currentTarget.releasePointerCapture(event.pointerId)}>{children}</div>;
+  const drag = useRef<{ pointerId: number; startX: number; startY: number; baseX: number; baseY: number; moved: boolean } | null>(null);
+  function startDrag(event: React.PointerEvent<HTMLDivElement>) {
+    if (!editable) return;
+    event.stopPropagation();
+    onSelect?.(id);
+    drag.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, baseX: position.x, baseY: position.y, moved: false };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+  function continueDrag(event: React.PointerEvent<HTMLDivElement>) {
+    const state = drag.current;
+    if (!state || state.pointerId !== event.pointerId || !onMove) return;
+    const deltaX = event.clientX - state.startX; const deltaY = event.clientY - state.startY;
+    if (!state.moved && Math.hypot(deltaX, deltaY) < 4) return;
+    state.moved = true;
+    const rect = event.currentTarget.parentElement!.getBoundingClientRect();
+    onMove(id, state.baseX + (deltaX / rect.width) * 100, state.baseY + (deltaY / rect.height) * 100);
+  }
+  function stopDrag(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    drag.current = null;
+  }
+  return <div className={`template-block ${id} ${editable ? "editable" : ""} ${selected === id ? "selected" : ""}`} style={{ left: `${position.x}%`, top: `${position.y}%` }} onClick={(event) => { if (editable) { event.stopPropagation(); onSelect?.(id); } }} onPointerDown={startDrag} onPointerMove={continueDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag}>{children}</div>;
 }
 
 function CertificatePages({ student, scores, subjects, institution, template, page, editable, selected, onSelect, onMove }: { student: Student; scores: number[]; subjects: Subject[]; institution: InstitutionSettings; template: CertificateTemplate; page?: 1 | 2; editable?: boolean; selected?: TemplateElementId; onSelect?: (id: TemplateElementId) => void; onMove?: (id: TemplateElementId, x: number, y: number) => void }) {
