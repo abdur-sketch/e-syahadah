@@ -31,6 +31,7 @@ if (!(await getDoc(doc(db, "settings", "institution"))).exists()) throw new Erro
 const templateRef = doc(db, "settings", "certificate-template");
 const templateSnapshot = await getDoc(templateRef);
 if (!templateSnapshot.exists()) throw new Error("Template ijazah belum tersedia.");
+if (!templateSnapshot.data()?.texts?.coverTitle) throw new Error("Teks template ijazah belum tersedia.");
 await updateDoc(templateRef, { watermarkOpacity: 0.07 });
 if ((await getDoc(templateRef)).data()?.watermarkOpacity !== 0.07) throw new Error("Penyimpanan desain ijazah gagal.");
 

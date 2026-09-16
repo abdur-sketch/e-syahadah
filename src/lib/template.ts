@@ -14,6 +14,7 @@ export type CertificateTemplate = {
   logoSize: number;
   watermarkSize: number;
   positions: Record<TemplateElementId, TemplatePosition>;
+  texts: Partial<Record<TemplateElementId, string>>;
 };
 
 export const templateLabels: Record<TemplateElementId, string> = {
@@ -37,6 +38,22 @@ export const defaultTemplate: CertificateTemplate = {
     transcriptLogo: { x: 12, y: 9 }, transcriptWatermark: { x: 50, y: 54 }, transcriptTitle: { x: 50, y: 10 }, transcriptStudent: { x: 68, y: 18 }, transcriptTable: { x: 50, y: 53 },
     transcriptSignature: { x: 50, y: 90 },
   },
+  texts: {
+    coverWatermark: "{{nama_pesantren}}",
+    coverTitle: "الشَّهَادَةُ",
+    coverInstitution: "{{yayasan_arab}}\n{{pesantren_arab}}\n{{alamat_arab}}",
+    coverYear: "العام الدراسي: ١٤٤٧ - ١٤٤٨ هـ",
+    coverOpening: "الحمد لله رب العالمين والصلاة والسلام على أشرف الأنبياء والمرسلين وعلى آله وصحبه أجمعين، أما بعد:\nتُقَرِّرُ إِدَارَةُ {{pesantren_arab}} بِأَنَّ الطَّالِبَ:",
+    coverStudent: "اسم الطالب|{{nama_arab}}\nالمولود في|{{tempat_lahir}}، {{tanggal_lahir}}\nرقم القيد|{{nomor_induk}}",
+    coverDecision: "قَدْ أَتَمَّ الدِّرَاسَةَ فِي {{pesantren_arab}} لِـ{{jenjang_arab}} {{status_arab}} فِي امْتِحَانِهِ النِّهَائِيِّ بِتَقْدِيْرٍ عَامٍّ: {{nilai_rata}} وَالْمُعَدَّلِ: {{predikat}}. وَبِنَاءً عَلَى ذَلِكَ مُنِحَ هَذِهِ الشَّهَادَةَ لِيَنْتَفِعَ بِهَا، وَاللهُ وَلِيُّ التَّوْفِيْقِ.",
+    coverPhoto: "صورة\n٣ × ٤",
+    coverSignature: "تاريخ: {{tanggal_cetak}}\nمدير المعهد\n{{kepala_sekolah}}",
+    transcriptWatermark: "{{nama_pesantren}}",
+    transcriptTitle: "بَيَانٌ بِالدَّرَجَاتِ الْمُكْتَسَبَةِ بِالِامْتِحَانِ النِّهَائِيِّ",
+    transcriptStudent: "اسم الطالب|{{nama_arab}}\nالمولود في|{{tempat_lahir}}، {{tanggal_lahir}}\nرقم القيد|{{nomor_induk}}",
+    transcriptTable: "رقم|المواد الدراسية|رقماً|كتابة|الملاحظة\nمجموع الدرجات|النسبة المئوية|النتيجة|بتقدير",
+    transcriptSignature: "مدير المعهد\n{{kepala_sekolah}}",
+  },
 };
 
 async function ensureReady() {
@@ -49,7 +66,7 @@ export async function subscribeToTemplate(onData: (template: CertificateTemplate
   return onSnapshot(doc(firestore!, "settings", "certificate-template"), (snapshot) => {
     if (!snapshot.exists()) return onData(defaultTemplate);
     const data = snapshot.data() as Partial<CertificateTemplate>;
-    onData({ ...defaultTemplate, ...data, positions: { ...defaultTemplate.positions, ...(data.positions ?? {}) } });
+    onData({ ...defaultTemplate, ...data, positions: { ...defaultTemplate.positions, ...(data.positions ?? {}) }, texts: { ...defaultTemplate.texts, ...(data.texts ?? {}) } });
   }, onError);
 }
 
