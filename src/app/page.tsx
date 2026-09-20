@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Award, Bell, BookOpen, CalendarDays, Check, ChevronDown, ClipboardList, Eye, FileCheck2, FileText, GraduationCap, ImagePlus, LayoutDashboard, Menu, MessageCircle, Moon, MoreHorizontal, Move, Pencil, Plus, Printer, RotateCcw, Save, Search, Settings, SlidersHorizontal, Sparkles, Sun, Trash2, UserPlus, Users, X } from "lucide-react";
+import { Award, Bell, BookOpen, CalendarDays, Check, ChevronDown, ClipboardList, Eye, FileCheck2, FileText, GraduationCap, ImagePlus, LayoutDashboard, LockKeyhole, Menu, MessageCircle, Moon, MoreHorizontal, Move, Pencil, Plus, Printer, RotateCcw, Save, Search, Settings, SlidersHorizontal, Sparkles, Sun, Trash2, UserPlus, Users, X } from "lucide-react";
 import { isFirebaseConfigured } from "@/lib/firebase";
 import { deleteStudent, saveStudent, seedStudents, subscribeToStudents, type Student } from "@/lib/students";
 import { defaultSubjects, saveSubjects, subscribeToSubjects, type Subject } from "@/lib/subjects";
 import { defaultSettings, saveSettings, subscribeToSettings, type InstitutionSettings } from "@/lib/settings";
+import { averageScore, getCertificateCandidates, getStudentStatus } from "@/lib/academy";
+import { appendAuditEntry, buildStudentsCsv, loadAuditEntries } from "@/lib/admin";
 import { defaultTemplate, saveTemplate, subscribeToTemplate, templateLabels, type CertificateTemplate, type TemplateElementId } from "@/lib/template";
 
+const adminPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE || "E-SYAHADAH-ADMIN-2026";
 const initialScores = [82, 88, 76, 91, 84, 79, 86, 90, 81, 87, 85];
 const demoStudents: Student[] = [
   { name: "Ahmad Fauzan", arabicName: "أحمد فوزان", initials: "AF", id: "SYH-2026-001", level: "Ulya", status: "Lulus", score: 84, tone: "rose", scores: initialScores, nisn: "0061234501", birthPlace: "Jakarta", birthDate: "2006-04-12", guardian: "Abdul Karim", certificateStatus: "Belum" },
@@ -49,22 +52,51 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [syncState, setSyncState] = useState<"demo" | "connecting" | "connected" | "saving" | "saved" | "error">(isFirebaseConfigured ? "connecting" : "demo");
+  const [auditEntries, setAuditEntries] = useState(loadAuditEntries("e-syahadah-audit"));
+  const [adminAuthenticated, setAdminAuthenticated] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("e-syahadah-admin") === "true";
+  });
+  const [adminPassInput, setAdminPassInput] = useState("");
+  const [adminError, setAdminError] = useState("");
   const [toast, setToast] = useState("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentStudent = students.find((student) => student.id === selectedId) ?? students[0];
-  const average = Math.round(scores.reduce((sum, score) => sum + score, 0) / Math.max(scores.length, 1));
-  const passed = average >= 70;
+  const average = averageScore(scores);
+  const passed = getStudentStatus(scores) === "Lulus";
   const filteredStudents = useMemo(() => students.filter((student) =>
     (student.name.toLowerCase().includes(search.toLowerCase()) || student.id.toLowerCase().includes(search.toLowerCase())) &&
     (levelFilter === "Semua" || student.level === levelFilter) && (statusFilter === "Semua" || student.status === statusFilter)
   ), [levelFilter, search, statusFilter, students]);
-  const passedCount = students.filter((student) => student.status === "Lulus").length;
+  const passedCount = students.filter((student) => getStudentStatus(student.scores ?? []) === "Lulus").length;
   const issuedCount = students.filter((student) => student.certificateStatus === "Terbit").length;
-  const pendingCount = students.filter((student) => student.status === "Lulus" && student.certificateStatus !== "Terbit").length;
+  const pendingCount = getCertificateCandidates(students).length;
   const progress = passedCount ? Math.round((issuedCount / passedCount) * 100) : 0;
 
   function notify(message: string) { setToast(message); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(""), 3200); }
+  function logAudit(action: string, message: string) { const next = appendAuditEntry("e-syahadah-audit", { action, message, createdAt: new Date().toISOString() }); setAuditEntries(next); }
+  function handleAdminLogin(event: FormEvent) {
+    event.preventDefault();
+    if (adminPassInput.trim() === adminPasscode) {
+      window.localStorage.setItem("e-syahadah-admin", "true");
+      setAdminAuthenticated(true);
+      setAdminError("");
+      setAdminPassInput("");
+      logAudit("admin-login", "Admin berhasil masuk ke panel");
+      notify("Login admin berhasil.");
+      return;
+    }
+    setAdminError("Kode admin tidak valid. Silakan cek kembali passcode Anda.");
+  }
+  function handleAdminLogout() {
+    window.localStorage.removeItem("e-syahadah-admin");
+    setAdminAuthenticated(false);
+    setAdminError("");
+    setAdminPassInput("");
+    logAudit("admin-logout", "Admin keluar dari panel");
+    notify("Keluar dari mode admin");
+  }
   function navigate(label: string) { setActiveNav(label); setMobileMenuOpen(false); setSearch(""); }
   function chooseStudent(student: Student) { selectedIdRef.current = student.id; setSelectedId(student.id); setScores([...student.scores]); }
   function makeStudent(): Student { const number = String(students.length + 1).padStart(3, "0"); return { id: `SYH-${currentYear}-${number}`, name: "", arabicName: "", initials: "", level: "Ulya", status: "Proses", score: 0, tone: tones[students.length % tones.length], scores: Array(11).fill(0), nisn: "", birthPlace: "", birthDate: "", guardian: "", certificateStatus: "Belum" }; }
@@ -74,8 +106,9 @@ export default function Home() {
     event.preventDefault();
     if (!studentForm?.name.trim() || !studentForm.id.trim()) return notify("Nama dan nomor syahadah wajib diisi.");
     if (isNewStudent && students.some((student) => student.id === studentForm.id.trim())) return notify("Nomor syahadah sudah digunakan.");
-    const prepared = { ...studentForm, name: studentForm.name.trim(), initials: getInitials(studentForm.name), score: Math.round(studentForm.scores.reduce((sum, score) => sum + score, 0) / 11) };
-    try { setSyncState("saving"); if (isFirebaseConfigured) await saveStudent(prepared, academicYear); setStudents((list) => isNewStudent ? [...list, prepared] : list.map((item) => item.id === prepared.id ? prepared : item)); setStudentForm(null); setSyncState(isFirebaseConfigured ? "saved" : "demo"); notify(isNewStudent ? "Santri berhasil ditambahkan." : "Data santri diperbarui."); }
+    const preparedScore = averageScore(studentForm.scores);
+    const prepared = { ...studentForm, name: studentForm.name.trim(), initials: getInitials(studentForm.name), score: preparedScore, status: getStudentStatus(studentForm.scores) as Student["status"] };
+    try { setSyncState("saving"); if (isFirebaseConfigured) await saveStudent(prepared, academicYear); setStudents((list) => isNewStudent ? [...list, prepared] : list.map((item) => item.id === prepared.id ? prepared : item)); setStudentForm(null); setSyncState(isFirebaseConfigured ? "saved" : "demo"); logAudit("student-save", isNewStudent ? `Menambahkan santri ${prepared.name}` : `Memperbarui data santri ${prepared.name}`); notify(isNewStudent ? "Santri berhasil ditambahkan." : "Data santri diperbarui."); }
     catch (error) { console.error(error); setSyncState("error"); notify("Data gagal disimpan. Periksa Firebase."); }
   }
   async function removeStudent(student: Student) {
@@ -91,12 +124,12 @@ export default function Home() {
   }
   async function issueCertificate(student: Student) {
     const updated = { ...student, certificateStatus: "Terbit" as const };
-    try { if (isFirebaseConfigured) await saveStudent(updated, academicYear); setStudents((list) => list.map((item) => item.id === student.id ? updated : item)); chooseStudent(updated); setShowPreview(true); notify("Ijazah berhasil diterbitkan."); }
+    try { if (isFirebaseConfigured) await saveStudent(updated, academicYear); setStudents((list) => list.map((item) => item.id === student.id ? updated : item)); chooseStudent(updated); setShowPreview(true); logAudit("certificate-issued", `Menerbitkan ijazah untuk ${student.name}`); notify("Ijazah berhasil diterbitkan."); }
     catch (error) { console.error(error); notify("Ijazah gagal diterbitkan."); }
   }
-  async function persistSubjects() { try { if (isFirebaseConfigured) await saveSubjects(subjects); notify("Mata pelajaran berhasil disimpan."); } catch (error) { console.error(error); notify("Mata pelajaran gagal disimpan."); } }
-  async function persistSettings(event: FormEvent) { event.preventDefault(); try { if (isFirebaseConfigured) await saveSettings(settingsForm); setInstitution(settingsForm); notify("Pengaturan pesantren berhasil disimpan."); } catch (error) { console.error(error); notify("Pengaturan gagal disimpan."); } }
-  async function persistTemplate() { try { if (isFirebaseConfigured) await saveTemplate(template); notify("Desain ijazah berhasil disimpan."); } catch (error) { console.error(error); notify("Desain ijazah gagal disimpan."); } }
+  async function persistSubjects() { try { if (isFirebaseConfigured) await saveSubjects(subjects); logAudit("subjects-save", "Menyimpan daftar mata pelajaran"); notify("Mata pelajaran berhasil disimpan."); } catch (error) { console.error(error); notify("Mata pelajaran gagal disimpan."); } }
+  async function persistSettings(event: FormEvent) { event.preventDefault(); try { if (isFirebaseConfigured) await saveSettings(settingsForm); setInstitution(settingsForm); logAudit("settings-save", `Menyimpan pengaturan lembaga ${settingsForm.name}`); notify("Pengaturan pesantren berhasil disimpan."); } catch (error) { console.error(error); notify("Pengaturan gagal disimpan."); } }
+  async function persistTemplate() { try { if (isFirebaseConfigured) await saveTemplate(template); logAudit("template-save", "Menyimpan desain ijazah"); notify("Desain ijazah berhasil disimpan."); } catch (error) { console.error(error); notify("Desain ijazah gagal disimpan."); } }
 
   useEffect(() => { function closeOnEscape(event: KeyboardEvent) { if (event.key === "Escape") { setShowPreview(false); setStudentForm(null); setMobileMenuOpen(false); } } window.addEventListener("keydown", closeOnEscape); return () => window.removeEventListener("keydown", closeOnEscape); }, []);
   useEffect(() => { const timer = window.setTimeout(() => { const saved = window.localStorage.getItem("e-syahadah-theme"); setDarkMode(saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches); }, 0); return () => window.clearTimeout(timer); }, []);
@@ -111,9 +144,26 @@ export default function Home() {
     return () => { active = false; stops.forEach((stop) => stop()); };
   }, []);
 
+  const exportStudents = () => {
+    const csv = buildStudentsCsv(students);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `e-syahadah-data-${academicYear}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    logAudit("export-csv", "Mengekspor data santri ke CSV");
+    notify("Data santri berhasil diekspor.");
+  };
+
+  if (!adminAuthenticated) {
+    return <main className="app-shell login-shell light"><div className="login-panel"><div className="login-brand"><div className="brand-mark"><Sparkles size={19} /></div><div><strong>E-SYAHADAH</strong><span>Admin Workspace</span></div></div><div className="login-copy"><p className="eyebrow accent">Akses Administrator</p><h1>Masuk ke panel akademik</h1><p>Gunakan passcode admin untuk mengelola santri, nilai, ijazah, dan template.</p></div><form className="login-form" onSubmit={handleAdminLogin}><label className="form-field"><span>Passcode Admin</span><input type="password" value={adminPassInput} onChange={(event) => setAdminPassInput(event.target.value)} placeholder="Masukkan passcode" required /></label>{adminError && <span className="login-error">{adminError}</span>}<button className="primary-button" type="submit"><LockKeyhole size={16} />Masuk</button></form></div></main>;
+  }
+
   return <main className={`app-shell ${darkMode ? "dark" : "light"}`}>
     {mobileMenuOpen && <button className="sidebar-backdrop" aria-label="Tutup menu" onClick={() => setMobileMenuOpen(false)} />}
-    <aside className={`sidebar ${mobileMenuOpen ? "open" : ""}`} aria-label="Navigasi utama"><div className="brand"><div className="brand-mark"><Sparkles size={19} /></div><div><strong>E-SYAHADAH</strong><span>{institution.name}</span></div><button className="sidebar-close" aria-label="Tutup menu" onClick={() => setMobileMenuOpen(false)}><X size={18} /></button></div><div className="sidebar-section"><p className="eyebrow">WORKSPACE</p>{navItems.map(({ label, icon: Icon }) => <button key={label} className={`nav-item ${activeNav === label ? "active" : ""}`} onClick={() => navigate(label)}><Icon size={18} /><span>{label}</span>{label === "Ijazah" && pendingCount > 0 && <span className="nav-count">{pendingCount}</span>}</button>)}</div><div className="sidebar-section sidebar-bottom"><p className="eyebrow">KONFIGURASI</p><button className={`nav-item ${activeNav === "Mata Pelajaran" ? "active" : ""}`} onClick={() => navigate("Mata Pelajaran")}><BookOpen size={18} /><span>Mata Pelajaran</span></button><button className={`nav-item ${activeNav === "Desain Ijazah" ? "active" : ""}`} onClick={() => navigate("Desain Ijazah")}><Move size={18} /><span>Desain Ijazah</span></button><button className={`nav-item ${activeNav === "Pengaturan" ? "active" : ""}`} onClick={() => navigate("Pengaturan")}><Settings size={18} /><span>Pengaturan</span></button><div className="help-card"><GraduationCap size={18} /><strong>Butuh bantuan?</strong><span>Lengkapi data, nilai, lalu terbitkan ijazah.</span><button onClick={() => navigate("Ijazah")}>Lihat alur →</button></div></div><div className="profile"><div className="avatar small">AR</div><div><strong>{institution.principal}</strong><span>Administrator</span></div><MoreHorizontal size={18} className="muted-icon" /></div></aside>
+    <aside className={`sidebar ${mobileMenuOpen ? "open" : ""}`} aria-label="Navigasi utama"><div className="brand"><div className="brand-mark"><Sparkles size={19} /></div><div><strong>E-SYAHADAH</strong><span>{institution.name}</span></div><button className="sidebar-close" aria-label="Tutup menu" onClick={() => setMobileMenuOpen(false)}><X size={18} /></button></div><div className="sidebar-section"><p className="eyebrow">WORKSPACE</p>{navItems.map(({ label, icon: Icon }) => <button key={label} className={`nav-item ${activeNav === label ? "active" : ""}`} onClick={() => navigate(label)}><Icon size={18} /><span>{label}</span>{label === "Ijazah" && pendingCount > 0 && <span className="nav-count">{pendingCount}</span>}</button>)}</div><div className="sidebar-section sidebar-bottom"><p className="eyebrow">KONFIGURASI</p><button className={`nav-item ${activeNav === "Mata Pelajaran" ? "active" : ""}`} onClick={() => navigate("Mata Pelajaran")}><BookOpen size={18} /><span>Mata Pelajaran</span></button><button className={`nav-item ${activeNav === "Desain Ijazah" ? "active" : ""}`} onClick={() => navigate("Desain Ijazah")}><Move size={18} /><span>Desain Ijazah</span></button><button className={`nav-item ${activeNav === "Pengaturan" ? "active" : ""}`} onClick={() => navigate("Pengaturan")}><Settings size={18} /><span>Pengaturan</span></button><button className="nav-item" onClick={exportStudents}><FileText size={18} /><span>Export CSV</span></button><button className="nav-item" onClick={handleAdminLogout}><X size={18} /><span>Keluar Admin</span></button><div className="help-card"><GraduationCap size={18} /><strong>Butuh bantuan?</strong><span>Lengkapi data, nilai, lalu terbitkan ijazah.</span><button onClick={() => navigate("Ijazah")}>Lihat alur →</button></div></div><div className="profile"><div className="avatar small">AR</div><div><strong>{institution.principal}</strong><span>Administrator</span></div><MoreHorizontal size={18} className="muted-icon" /></div></aside>
     <section className="main-content"><header className="topbar"><button className="mobile-menu" aria-label="Buka menu" onClick={() => setMobileMenuOpen(true)}><Menu size={20} /></button><div className="breadcrumb"><span>Workspace</span><span>/</span><strong>{activeNav}</strong></div><div className="topbar-actions"><div className="year-select"><span className="status-dot" />Tahun Ajaran {academicYear}<ChevronDown size={15} /></div><button className="icon-button theme-toggle" aria-label={darkMode ? "Gunakan mode terang" : "Gunakan mode gelap"} title={darkMode ? "Mode terang" : "Mode gelap"} onClick={toggleTheme}>{darkMode ? <Sun size={17} /> : <Moon size={17} />}</button><button className="icon-button" aria-label="Notifikasi"><Bell size={18} />{pendingCount > 0 && <i />}</button><div className="avatar">AR</div></div></header><div className="page-body"><PageHeading active={activeNav} syncState={syncState} onAdd={openAddStudent} onIssue={() => navigate("Ijazah")} />
       {activeNav === "Dashboard" && <Dashboard students={students} current={currentStudent} subjects={subjects} scores={scores} average={average} passed={passed} issuedCount={issuedCount} passedCount={passedCount} pendingCount={pendingCount} progress={progress} search={search} setSearch={setSearch} choose={chooseStudent} navigate={navigate} />}
       {activeNav === "Data Santri" && <StudentsView students={filteredStudents} search={search} setSearch={setSearch} showFilters={showFilters} setShowFilters={setShowFilters} levelFilter={levelFilter} setLevelFilter={setLevelFilter} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onAdd={openAddStudent} onEdit={openEditStudent} onDelete={removeStudent} />}
@@ -125,6 +175,7 @@ export default function Home() {
     </div></section>
     {studentForm && <StudentModal value={studentForm} setValue={setStudentForm} isNew={isNewStudent} onClose={() => setStudentForm(null)} onSubmit={submitStudent} />}
     {showPreview && <CertificateModal student={currentStudent} scores={scores} subjects={subjects} institution={institution} template={template} average={average} passed={passed} onClose={() => setShowPreview(false)} />}
+    <AuditPanel entries={auditEntries} />
     {toast && <div className="toast"><Check size={16} />{toast}</div>}
   </main>;
 }
@@ -274,6 +325,10 @@ function EditableSignature({ content, transcript = false }: { content: string; t
 
 function CertificateModal({ student, scores, subjects, institution, template, average, passed, onClose }: { student: Student; scores: number[]; subjects: Subject[]; institution: InstitutionSettings; template: CertificateTemplate; average: number; passed: boolean; onClose: () => void }) {
   return <div className="modal-backdrop" onClick={onClose}><section className="preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-title" onClick={(e) => e.stopPropagation()}><div className="preview-header"><div><p className="eyebrow accent">PREVIEW DOKUMEN</p><h2 id="preview-title">Ijazah {student.name}</h2><p>Dua halaman syahadah Arab siap dicetak.</p></div><button className="close-button" aria-label="Tutup preview" onClick={onClose}><X size={20} /></button></div><div className="certificate-preview"><CertificatePages student={student} scores={scores} subjects={subjects} institution={institution} template={template} /></div><div className="preview-actions"><span className={`print-status ${passed ? "pass" : ""}`}>Rata-rata {average} · {passed ? "Lulus" : "Belum lulus"}</span><button className="ghost-action" onClick={() => window.print()}><Printer size={16} />Cetak A4</button><button className="primary-button" onClick={() => window.print()}><FileText size={16} />Simpan sebagai PDF</button></div></section></div>;
+}
+
+function AuditPanel({ entries }: { entries: ReturnType<typeof loadAuditEntries> }) {
+  return <aside className="panel audit-panel"><PanelHeader title="Aktivitas admin" subtitle="Riwayat tindakan terakhir untuk proses akademik." /><div className="audit-list">{entries.length ? entries.map((entry) => <div className="audit-row" key={entry.id}><strong>{entry.action}</strong><span>{entry.message}</span><small>{new Date(entry.createdAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</small></div>) : <EmptyState title="Belum ada aktivitas" text="Semua aksi admin akan muncul di sini." />}</div></aside>;
 }
 
 function PanelHeader({ title, subtitle, action }: { title: string; subtitle: string; action?: ReactNode }) { return <div className="panel-header"><div><h2>{title}</h2><p>{subtitle}</p></div>{action}</div>; }
