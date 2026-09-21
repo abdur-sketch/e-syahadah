@@ -1,7 +1,7 @@
 import nextEnv from "@next/env";
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, signOut } from "firebase/auth";
-import { deleteDoc, doc, getDoc, getFirestore, setDoc, terminate, updateDoc } from "firebase/firestore";
+import { doc, getDoc, getFirestore, terminate } from "firebase/firestore";
 
 nextEnv.loadEnvConfig(process.cwd());
 const app = initializeApp({
@@ -16,26 +16,10 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 await signInAnonymously(auth);
 
-const testId = "SYH-SMOKE-TEST";
-const testRef = doc(db, "students", testId);
-await setDoc(testRef, {
-  id: testId, name: "Santri Uji", arabicName: "طالب الاختبار", initials: "SU", level: "Ula",
-  status: "Proses", score: 0, tone: "sky", scores: Array(11).fill(0), certificateStatus: "Belum",
-});
-if (!(await getDoc(testRef)).exists()) throw new Error("Create/read Firestore gagal.");
-await updateDoc(testRef, { guardian: "Wali Uji" });
-if ((await getDoc(testRef)).data()?.guardian !== "Wali Uji") throw new Error("Update Firestore gagal.");
-await deleteDoc(testRef);
-if ((await getDoc(testRef)).exists()) throw new Error("Delete Firestore gagal.");
-if (!(await getDoc(doc(db, "settings", "institution"))).exists()) throw new Error("Pengaturan lembaga belum tersedia.");
-const templateRef = doc(db, "settings", "certificate-template");
-const templateSnapshot = await getDoc(templateRef);
-if (!templateSnapshot.exists()) throw new Error("Template ijazah belum tersedia.");
-if (!templateSnapshot.data()?.texts?.coverTitle) throw new Error("Teks template ijazah belum tersedia.");
-if (!templateSnapshot.data()?.styles?.coverTitle?.fontSize) throw new Error("Pengaturan font template belum tersedia.");
-await updateDoc(templateRef, { watermarkOpacity: 0.07 });
-if ((await getDoc(templateRef)).data()?.watermarkOpacity !== 0.07) throw new Error("Penyimpanan desain ijazah gagal.");
-
-console.log("Smoke test Firebase lulus: CRUD santri, settings, dan desain ijazah.");
+let denied = false;
+try { await getDoc(doc(db, "settings", "institution")); }
+catch (error) { denied = error?.code === "permission-denied"; }
+if (!denied) throw new Error("Akun anonim masih dapat membaca data. Aturan admin belum aktif.");
+console.log("Tes keamanan lulus: akun anonim tidak dapat membaca data.");
 await signOut(auth);
 await terminate(db);

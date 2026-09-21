@@ -1,5 +1,5 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { getAuth, signInAnonymously, type User } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, type User } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -27,12 +27,37 @@ const app = isFirebaseConfigured
 export const firebaseAuth = app ? getAuth(app) : null;
 export const firestore = app ? getFirestore(app) : null;
 
-let authPromise: Promise<User> | null = null;
+const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL?.trim().toLowerCase();
+
+export function isAdminUser(user: User | null): user is User {
+  return Boolean(user && adminEmail && user.email?.toLowerCase() === adminEmail && user.emailVerified && user.providerData.some((provider) => provider.providerId === "google.com"));
+}
+
+export function observeAdmin(callback: (user: User | null) => void): () => void {
+  if (!firebaseAuth) { callback(null); return () => undefined; }
+  return onAuthStateChanged(firebaseAuth, (user) => callback(isAdminUser(user) ? user : null));
+}
+
+export async function signInAdmin(): Promise<User> {
+  if (!firebaseAuth) throw new Error("Firebase belum dikonfigurasi.");
+  if (!adminEmail) throw new Error("Email admin belum dikonfigurasi.");
+  const credential = await signInWithPopup(firebaseAuth, new GoogleAuthProvider());
+  if (!isAdminUser(credential.user)) {
+    await signOut(firebaseAuth);
+    throw new Error("Akun Google ini tidak memiliki akses admin.");
+  }
+  return credential.user;
+}
+
+export async function signOutAdmin(): Promise<void> {
+  if (firebaseAuth) await signOut(firebaseAuth);
+}
 
 export async function ensureFirebaseAuth(): Promise<User> {
   if (!firebaseAuth || !firestore) throw new Error("Firebase belum dikonfigurasi.");
-  if (firebaseAuth.currentUser) return firebaseAuth.currentUser;
-  authPromise ??= signInAnonymously(firebaseAuth).then((credential) => credential.user);
-  try { return await authPromise; }
-  finally { authPromise = null; }
+  const user = firebaseAuth.currentUser ?? await new Promise<User | null>((resolve) => {
+    const stop = onAuthStateChanged(firebaseAuth, (next) => { stop(); resolve(next); }, () => { stop(); resolve(null); });
+  });
+  if (!isAdminUser(user)) throw new Error("Masuk sebagai admin terlebih dahulu.");
+  return user;
 }

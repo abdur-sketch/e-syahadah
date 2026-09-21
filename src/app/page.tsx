@@ -2,15 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Award, Bell, BookOpen, CalendarDays, Check, ChevronDown, ClipboardList, Eye, FileCheck2, FileText, GraduationCap, ImagePlus, LayoutDashboard, LockKeyhole, Menu, MessageCircle, Moon, MoreHorizontal, Move, Pencil, Plus, Printer, RotateCcw, Save, Search, Settings, SlidersHorizontal, Sparkles, Sun, Trash2, UserPlus, Users, X } from "lucide-react";
-import { isFirebaseConfigured } from "@/lib/firebase";
-import { deleteStudent, saveStudent, seedStudents, subscribeToStudents, type Student } from "@/lib/students";
+import { isFirebaseConfigured, observeAdmin, signInAdmin, signOutAdmin } from "@/lib/firebase";
+import { deleteStudent, saveStudent, subscribeToStudents, type Student } from "@/lib/students";
 import { defaultSubjects, saveSubjects, subscribeToSubjects, type Subject } from "@/lib/subjects";
 import { defaultSettings, saveSettings, subscribeToSettings, type InstitutionSettings } from "@/lib/settings";
-import { averageScore, getCertificateCandidates, getStudentStatus } from "@/lib/academy";
-import { appendAuditEntry, buildStudentsCsv, loadAuditEntries } from "@/lib/admin";
+import { averageScore, certificateValidationIssues, getCertificateCandidates, getStudentStatus } from "@/lib/academy";
+import { appendAuditEntry, buildCsv, buildStudentsCsv, loadAuditEntries } from "@/lib/admin";
 import { defaultTemplate, saveTemplate, subscribeToTemplate, templateLabels, type CertificateTemplate, type TemplateElementId } from "@/lib/template";
 
-const adminPasscode = process.env.NEXT_PUBLIC_ADMIN_PASSCODE || "E-SYAHADAH-ADMIN-2026";
 const initialScores = [82, 88, 76, 91, 84, 79, 86, 90, 81, 87, 85];
 const demoStudents: Student[] = [
   { name: "Ahmad Fauzan", arabicName: "أحمد فوزان", initials: "AF", id: "SYH-2026-001", level: "Ulya", status: "Lulus", score: 84, tone: "rose", scores: initialScores, nisn: "0061234501", birthPlace: "Jakarta", birthDate: "2006-04-12", guardian: "Abdul Karim", certificateStatus: "Belum" },
@@ -19,7 +18,7 @@ const demoStudents: Student[] = [
   { name: "Nurul Hidayah", arabicName: "نور الهداية", initials: "NH", id: "SYH-2026-004", level: "Ulya", status: "Lulus", score: 88, tone: "peach", scores: [88, 90, 84, 92, 86, 87, 89, 91, 85, 90, 86], nisn: "0061234504", birthPlace: "Bekasi", birthDate: "2006-11-02", guardian: "Muhammad Ilyas", certificateStatus: "Terbit" },
   { name: "Abdullah Fikri", arabicName: "عبد الله فكري", initials: "AF", id: "SYH-2026-005", level: "Ulya", status: "Lulus", score: 83, tone: "sky", scores: [82, 85, 80, 86, 84, 79, 83, 87, 81, 85, 82], nisn: "0061234505", birthPlace: "Depok", birthDate: "2006-06-09", guardian: "Syamsul Arifin", certificateStatus: "Belum" },
 ];
-const navItems = [{ label: "Dashboard", icon: LayoutDashboard }, { label: "Data Santri", icon: Users }, { label: "E-Raport", icon: ClipboardList }, { label: "Ijazah", icon: FileCheck2 }];
+const navItems = [{ label: "Dashboard", icon: LayoutDashboard }, { label: "Data Santri", icon: Users }, { label: "E-Raport", icon: ClipboardList }, { label: "Rekap Kelas", icon: BookOpen }, { label: "Ijazah", icon: FileCheck2 }];
 const now = new Date();
 const today = new Intl.DateTimeFormat("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta" }).format(now).toUpperCase();
 const currentYear = Number(new Intl.DateTimeFormat("en", { year: "numeric", timeZone: "Asia/Jakarta" }).format(now));
@@ -53,16 +52,13 @@ export default function Home() {
   const [darkMode, setDarkMode] = useState(false);
   const [syncState, setSyncState] = useState<"demo" | "connecting" | "connected" | "saving" | "saved" | "error">(isFirebaseConfigured ? "connecting" : "demo");
   const [auditEntries, setAuditEntries] = useState(loadAuditEntries("e-syahadah-audit"));
-  const [adminAuthenticated, setAdminAuthenticated] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("e-syahadah-admin") === "true";
-  });
-  const [adminPassInput, setAdminPassInput] = useState("");
+  const [adminAuthenticated, setAdminAuthenticated] = useState(false);
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [adminError, setAdminError] = useState("");
   const [toast, setToast] = useState("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const currentStudent = students.find((student) => student.id === selectedId) ?? students[0];
+  const currentStudent = students.find((student) => student.id === selectedId) ?? students[0] ?? demoStudents[0];
   const average = averageScore(scores);
   const passed = getStudentStatus(scores) === "Lulus";
   const filteredStudents = useMemo(() => students.filter((student) =>
@@ -76,24 +72,14 @@ export default function Home() {
 
   function notify(message: string) { setToast(message); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(""), 3200); }
   function logAudit(action: string, message: string) { const next = appendAuditEntry("e-syahadah-audit", { action, message, createdAt: new Date().toISOString() }); setAuditEntries(next); }
-  function handleAdminLogin(event: FormEvent) {
-    event.preventDefault();
-    if (adminPassInput.trim() === adminPasscode) {
-      window.localStorage.setItem("e-syahadah-admin", "true");
-      setAdminAuthenticated(true);
-      setAdminError("");
-      setAdminPassInput("");
-      logAudit("admin-login", "Admin berhasil masuk ke panel");
-      notify("Login admin berhasil.");
-      return;
-    }
-    setAdminError("Kode admin tidak valid. Silakan cek kembali passcode Anda.");
-  }
-  function handleAdminLogout() {
-    window.localStorage.removeItem("e-syahadah-admin");
-    setAdminAuthenticated(false);
+  async function handleAdminLogin() {
     setAdminError("");
-    setAdminPassInput("");
+    try { await signInAdmin(); logAudit("admin-login", "Admin berhasil masuk ke panel"); notify("Login admin berhasil."); }
+    catch (error) { setAdminError(error instanceof Error ? error.message : "Login Google gagal."); }
+  }
+  async function handleAdminLogout() {
+    await signOutAdmin();
+    setAdminError("");
     logAudit("admin-logout", "Admin keluar dari panel");
     notify("Keluar dari mode admin");
   }
@@ -107,7 +93,7 @@ export default function Home() {
     if (!studentForm?.name.trim() || !studentForm.id.trim()) return notify("Nama dan nomor syahadah wajib diisi.");
     if (isNewStudent && students.some((student) => student.id === studentForm.id.trim())) return notify("Nomor syahadah sudah digunakan.");
     const preparedScore = averageScore(studentForm.scores);
-    const prepared = { ...studentForm, name: studentForm.name.trim(), initials: getInitials(studentForm.name), score: preparedScore, status: getStudentStatus(studentForm.scores) as Student["status"] };
+    const prepared = { ...studentForm, name: studentForm.name.trim(), initials: getInitials(studentForm.name), score: preparedScore, status: getStudentStatus(studentForm.scores) as Student["status"], certificateStatus: "Belum" as const };
     try { setSyncState("saving"); if (isFirebaseConfigured) await saveStudent(prepared, academicYear); setStudents((list) => isNewStudent ? [...list, prepared] : list.map((item) => item.id === prepared.id ? prepared : item)); setStudentForm(null); setSyncState(isFirebaseConfigured ? "saved" : "demo"); logAudit("student-save", isNewStudent ? `Menambahkan santri ${prepared.name}` : `Memperbarui data santri ${prepared.name}`); notify(isNewStudent ? "Santri berhasil ditambahkan." : "Data santri diperbarui."); }
     catch (error) { console.error(error); setSyncState("error"); notify("Data gagal disimpan. Periksa Firebase."); }
   }
@@ -118,14 +104,24 @@ export default function Home() {
     catch (error) { console.error(error); notify("Data gagal dihapus."); }
   }
   async function saveGrades() {
-    const updated = { ...currentStudent, scores, score: average, status: passed ? "Lulus" as const : "Proses" as const };
+    const updated = { ...currentStudent, scores, score: average, status: passed ? "Lulus" as const : "Proses" as const, certificateStatus: "Belum" as const };
     try { setSyncState("saving"); if (isFirebaseConfigured) await saveStudent(updated, academicYear); setStudents((list) => list.map((student) => student.id === updated.id ? updated : student)); setSyncState(isFirebaseConfigured ? "saved" : "demo"); notify("Nilai berhasil disimpan."); }
     catch (error) { console.error(error); setSyncState("error"); notify("Nilai gagal disimpan."); }
   }
   async function issueCertificate(student: Student) {
+    if (student.certificateStatus !== "Validasi") return notify("Validasi data dan nilai terlebih dahulu.");
+    const issues = certificateValidationIssues(student);
+    if (issues.length) return notify(`Lengkapi: ${issues.join(", ")}.`);
     const updated = { ...student, certificateStatus: "Terbit" as const };
     try { if (isFirebaseConfigured) await saveStudent(updated, academicYear); setStudents((list) => list.map((item) => item.id === student.id ? updated : item)); chooseStudent(updated); setShowPreview(true); logAudit("certificate-issued", `Menerbitkan ijazah untuk ${student.name}`); notify("Ijazah berhasil diterbitkan."); }
     catch (error) { console.error(error); notify("Ijazah gagal diterbitkan."); }
+  }
+  async function validateCertificate(student: Student) {
+    const issues = certificateValidationIssues(student);
+    if (issues.length) return notify(`Lengkapi: ${issues.join(", ")}.`);
+    const updated = { ...student, certificateStatus: "Validasi" as const };
+    try { if (isFirebaseConfigured) await saveStudent(updated, academicYear); setStudents((list) => list.map((item) => item.id === student.id ? updated : item)); logAudit("certificate-validated", `Memvalidasi ${student.name}`); notify("Data dan nilai tervalidasi. Ijazah siap diterbitkan."); }
+    catch (error) { console.error(error); notify("Validasi gagal disimpan."); }
   }
   async function persistSubjects() { try { if (isFirebaseConfigured) await saveSubjects(subjects); logAudit("subjects-save", "Menyimpan daftar mata pelajaran"); notify("Mata pelajaran berhasil disimpan."); } catch (error) { console.error(error); notify("Mata pelajaran gagal disimpan."); } }
   async function persistSettings(event: FormEvent) { event.preventDefault(); try { if (isFirebaseConfigured) await saveSettings(settingsForm); setInstitution(settingsForm); logAudit("settings-save", `Menyimpan pengaturan lembaga ${settingsForm.name}`); notify("Pengaturan pesantren berhasil disimpan."); } catch (error) { console.error(error); notify("Pengaturan gagal disimpan."); } }
@@ -133,16 +129,17 @@ export default function Home() {
 
   useEffect(() => { function closeOnEscape(event: KeyboardEvent) { if (event.key === "Escape") { setShowPreview(false); setStudentForm(null); setMobileMenuOpen(false); } } window.addEventListener("keydown", closeOnEscape); return () => window.removeEventListener("keydown", closeOnEscape); }, []);
   useEffect(() => { const timer = window.setTimeout(() => { const saved = window.localStorage.getItem("e-syahadah-theme"); setDarkMode(saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches); }, 0); return () => window.clearTimeout(timer); }, []);
+  useEffect(() => observeAdmin((user) => { setAdminAuthenticated(Boolean(user)); setCheckingAdmin(false); }), []);
   function toggleTheme() { setDarkMode((current) => { const next = !current; window.localStorage.setItem("e-syahadah-theme", next ? "dark" : "light"); return next; }); }
   useEffect(() => {
-    if (!isFirebaseConfigured) return;
+    if (!isFirebaseConfigured || !adminAuthenticated) return;
     let active = true; const stops: (() => void)[] = [];
-    subscribeToStudents(async (remote) => { if (!active) return; if (!remote.length) { await seedStudents(demoStudents, academicYear); return; } const selected = remote.find((item) => item.id === selectedIdRef.current) ?? remote[0]; selectedIdRef.current = selected.id; setStudents(remote); setSelectedId(selected.id); setScores([...selected.scores]); setSyncState("connected"); }, () => setSyncState("error")).then((stop) => active ? stops.push(stop) : stop()).catch(() => setSyncState("error"));
+    subscribeToStudents((remote) => { if (!active) return; const selected = remote.find((item) => item.id === selectedIdRef.current) ?? remote[0]; setStudents(remote); if (selected) { selectedIdRef.current = selected.id; setSelectedId(selected.id); setScores([...selected.scores]); } else { setScores(Array(11).fill(0)); } setSyncState("connected"); }, () => setSyncState("error")).then((stop) => active ? stops.push(stop) : stop()).catch(() => setSyncState("error"));
     subscribeToSubjects(async (remote) => { if (!active) return; if (!remote.length) { await saveSubjects(defaultSubjects); return; } setSubjects(remote); }, () => notify("Mata pelajaran gagal dimuat.")).then((stop) => active ? stops.push(stop) : stop()).catch(() => undefined);
     subscribeToSettings((data) => { if (!active) return; setInstitution(data); setSettingsForm(data); }, () => notify("Pengaturan gagal dimuat.")).then((stop) => active ? stops.push(stop) : stop()).catch(() => undefined);
     subscribeToTemplate((data) => { if (active) setTemplate(data); }, () => notify("Template ijazah gagal dimuat.")).then((stop) => active ? stops.push(stop) : stop()).catch(() => undefined);
     return () => { active = false; stops.forEach((stop) => stop()); };
-  }, []);
+  }, [adminAuthenticated]);
 
   const exportStudents = () => {
     const csv = buildStudentsCsv(students);
@@ -158,7 +155,11 @@ export default function Home() {
   };
 
   if (!adminAuthenticated) {
-    return <main className="app-shell login-shell light"><div className="login-panel"><div className="login-brand"><div className="brand-mark"><Sparkles size={19} /></div><div><strong>E-SYAHADAH</strong><span>Admin Workspace</span></div></div><div className="login-copy"><p className="eyebrow accent">Akses Administrator</p><h1>Masuk ke panel akademik</h1><p>Gunakan passcode admin untuk mengelola santri, nilai, ijazah, dan template.</p></div><form className="login-form" onSubmit={handleAdminLogin}><label className="form-field"><span>Passcode Admin</span><input type="password" value={adminPassInput} onChange={(event) => setAdminPassInput(event.target.value)} placeholder="Masukkan passcode" required /></label>{adminError && <span className="login-error">{adminError}</span>}<button className="primary-button" type="submit"><LockKeyhole size={16} />Masuk</button></form></div></main>;
+    return <main className="app-shell login-shell light"><div className="login-panel"><div className="login-brand"><div className="brand-mark"><Sparkles size={19} /></div><div><strong>E-SYAHADAH</strong><span>Admin Workspace</span></div></div><div className="login-copy"><p className="eyebrow accent">Akses Administrator</p><h1>Masuk ke panel akademik</h1><p>Gunakan akun Google admin yang terdaftar untuk mengelola data santri, nilai, dan ijazah.</p></div>{adminError && <span className="login-error">{adminError}</span>}<button className="primary-button" type="button" disabled={checkingAdmin} onClick={handleAdminLogin}><LockKeyhole size={16} />{checkingAdmin ? "Memeriksa akun…" : "Masuk dengan Google"}</button></div></main>;
+  }
+
+  if (isFirebaseConfigured && (syncState === "connecting" || syncState === "error")) {
+    return <main className="app-shell login-shell light"><div className="login-panel"><div className="login-brand"><div className="brand-mark"><Sparkles size={19} /></div><strong>E-SYAHADAH</strong></div><div className="login-copy"><h1>{syncState === "connecting" ? "Memuat data akademik…" : "Data belum dapat dimuat"}</h1><p>{syncState === "connecting" ? "Menghubungkan akun admin dengan Firebase." : "Periksa izin akun atau koneksi Firebase. Data contoh tidak akan digunakan untuk menggantikan data asli."}</p></div>{syncState === "error" && <button className="primary-button" onClick={() => window.location.reload()}>Coba lagi</button>}</div></main>;
   }
 
   return <main className={`app-shell ${darkMode ? "dark" : "light"}`}>
@@ -167,8 +168,9 @@ export default function Home() {
     <section className="main-content"><header className="topbar"><button className="mobile-menu" aria-label="Buka menu" onClick={() => setMobileMenuOpen(true)}><Menu size={20} /></button><div className="breadcrumb"><span>Workspace</span><span>/</span><strong>{activeNav}</strong></div><div className="topbar-actions"><div className="year-select"><span className="status-dot" />Tahun Ajaran {academicYear}<ChevronDown size={15} /></div><button className="icon-button theme-toggle" aria-label={darkMode ? "Gunakan mode terang" : "Gunakan mode gelap"} title={darkMode ? "Mode terang" : "Mode gelap"} onClick={toggleTheme}>{darkMode ? <Sun size={17} /> : <Moon size={17} />}</button><button className="icon-button" aria-label="Notifikasi"><Bell size={18} />{pendingCount > 0 && <i />}</button><div className="avatar">AR</div></div></header><div className="page-body"><PageHeading active={activeNav} syncState={syncState} onAdd={openAddStudent} onIssue={() => navigate("Ijazah")} />
       {activeNav === "Dashboard" && <Dashboard students={students} current={currentStudent} subjects={subjects} scores={scores} average={average} passed={passed} issuedCount={issuedCount} passedCount={passedCount} pendingCount={pendingCount} progress={progress} search={search} setSearch={setSearch} choose={chooseStudent} navigate={navigate} />}
       {activeNav === "Data Santri" && <StudentsView students={filteredStudents} search={search} setSearch={setSearch} showFilters={showFilters} setShowFilters={setShowFilters} levelFilter={levelFilter} setLevelFilter={setLevelFilter} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onAdd={openAddStudent} onEdit={openEditStudent} onDelete={removeStudent} />}
-      {activeNav === "E-Raport" && <GradesView students={students} current={currentStudent} subjects={subjects} scores={scores} setScores={setScores} average={average} passed={passed} choose={chooseStudent} saveGrades={saveGrades} onPreview={() => setShowPreview(true)} syncState={syncState} />}
-      {activeNav === "Ijazah" && <CertificatesView students={students} onPreview={(student) => { chooseStudent(student); setShowPreview(true); }} onIssue={issueCertificate} />}
+      {activeNav === "E-Raport" && (students.length ? <GradesView students={students} current={currentStudent} subjects={subjects} scores={scores} setScores={setScores} average={average} passed={passed} choose={chooseStudent} saveGrades={saveGrades} onPreview={() => setShowPreview(true)} syncState={syncState} /> : <section className="panel full-panel"><EmptyState title="Belum ada santri" text="Tambahkan santri di menu Data Santri sebelum mengisi nilai." /></section>)}
+      {activeNav === "Rekap Kelas" && <ClassRecap students={students} subjects={subjects} onExport={(rows) => { const csv = buildCsv(rows); const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); const anchor = document.createElement("a"); anchor.href = url; anchor.download = `rekap-nilai-${academicYear}.csv`; anchor.click(); URL.revokeObjectURL(url); logAudit("recap-export", "Mengekspor rekap nilai kelas"); }} />}
+      {activeNav === "Ijazah" && <CertificatesView students={students} onPreview={(student) => { chooseStudent(student); setShowPreview(true); }} onValidate={validateCertificate} onIssue={issueCertificate} />}
       {activeNav === "Mata Pelajaran" && <SubjectsView subjects={subjects} setSubjects={setSubjects} onSave={persistSubjects} />}
       {activeNav === "Desain Ijazah" && <TemplateDesigner template={template} setTemplate={setTemplate} student={currentStudent} scores={scores} subjects={subjects} institution={institution} onSave={persistTemplate} notify={notify} />}
       {activeNav === "Pengaturan" && <SettingsView value={settingsForm} setValue={setSettingsForm} onSave={persistSettings} />}
@@ -181,7 +183,7 @@ export default function Home() {
 }
 
 function PageHeading({ active, syncState, onAdd, onIssue }: { active: string; syncState: string; onAdd: () => void; onIssue: () => void }) {
-  const copy: Record<string, [string, string]> = { Dashboard: ["Selamat datang, Ahmad", "Pantau penerbitan ijazah pesantren dalam satu ruang."], "Data Santri": ["Data santri", "Kelola identitas dan data akademik seluruh santri."], "E-Raport": ["E-Raport santri", "Pilih santri, isi nilai, periksa hasil, lalu simpan dan cetak."], Ijazah: ["Penerbitan ijazah", "Validasi, pratinjau, dan cetak ijazah digital."], "Mata Pelajaran": ["Mata pelajaran", "Atur nama dan status pelajaran pada transkrip."], "Desain Ijazah": ["Desain ijazah", "Edit teks, geser elemen, unggah logo, dan atur watermark."], Pengaturan: ["Pengaturan pesantren", "Sesuaikan identitas yang tampil pada dokumen ijazah."] };
+  const copy: Record<string, [string, string]> = { Dashboard: ["Selamat datang, Ahmad", "Pantau penerbitan ijazah pesantren dalam satu ruang."], "Data Santri": ["Data santri", "Kelola identitas dan data akademik seluruh santri."], "E-Raport": ["E-Raport santri", "Pilih santri, isi nilai, periksa hasil, lalu simpan dan cetak."], "Rekap Kelas": ["Rekap nilai kelas", "Bandingkan nilai semua santri dan ekspor untuk administrasi."], Ijazah: ["Penerbitan ijazah", "Validasi, pratinjau, dan cetak ijazah digital."], "Mata Pelajaran": ["Mata pelajaran", "Atur nama dan status pelajaran pada transkrip."], "Desain Ijazah": ["Desain ijazah", "Edit teks, geser elemen, unggah logo, dan atur watermark."], Pengaturan: ["Pengaturan pesantren", "Sesuaikan identitas yang tampil pada dokumen ijazah."] };
   return <div className="page-heading"><div><p className="eyebrow accent">{today}</p><h1>{copy[active]?.[0]} <span>✦</span></h1><div className="heading-meta"><p className="subheading">{copy[active]?.[1]}</p><span className={`sync-badge ${syncState}`}><i />{syncState === "demo" ? "Mode demo" : syncState === "connecting" ? "Menghubungkan Firebase" : syncState === "saving" ? "Menyimpan" : syncState === "error" ? "Firebase bermasalah" : "Firebase tersinkron"}</span></div></div>{active === "Data Santri" ? <button className="primary-button" onClick={onAdd}><UserPlus size={17} />Tambah Santri</button> : active === "Dashboard" ? <button className="primary-button" onClick={onIssue}><FileText size={17} />Buat Ijazah Baru</button> : null}</div>;
 }
 
@@ -213,13 +215,35 @@ function GradesView(props: { students: Student[]; current: Student; subjects: Su
 
 function reportPredicate(score: number) { if (score >= 90) return ["A", "Sangat Baik"]; if (score >= 80) return ["B", "Baik"]; if (score >= 70) return ["C", "Cukup"]; return ["D", "Perlu Bimbingan"]; }
 
+function ClassRecap({ students, subjects, onExport }: { students: Student[]; subjects: Subject[]; onExport: (rows: (string | number)[][]) => void }) {
+  const [level, setLevel] = useState("Semua");
+  const [query, setQuery] = useState("");
+  const activeSubjects = subjects.filter((subject) => subject.active).sort((a, b) => a.order - b.order);
+  const visible = students.filter((student) => (level === "Semua" || student.level === level) && student.name.toLowerCase().includes(query.toLowerCase()));
+  const rows: (string | number)[][] = [
+    ["Nomor Syahadah", "Nama", "Jenjang", ...activeSubjects.map((subject) => subject.name), "Rata-rata", "Status", "Ijazah"],
+    ...visible.map((student) => [student.id, student.name, student.level, ...activeSubjects.map((subject) => student.scores[subject.order] || ""), averageScore(student.scores), student.status, student.certificateStatus ?? "Belum"]),
+  ];
+  function printRecap() {
+    document.body.classList.add("print-recap");
+    const cleanup = () => document.body.classList.remove("print-recap");
+    window.addEventListener("afterprint", cleanup, { once: true });
+    window.print();
+  }
+  return <section className="panel full-panel recap-print"><PanelHeader title={`Rekap nilai · ${visible.length} santri`} subtitle={`Tahun ajaran ${academicYear} · nilai per mata pelajaran dan status kelulusan`} /><div className="recap-toolbar"><label>Jenjang<select value={level} onChange={(event) => setLevel(event.target.value)}><option>Semua</option><option>Ula</option><option>Wustha</option><option>Ulya</option></select></label><label>Cari santri<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nama santri" /></label><button className="ghost-action" onClick={() => onExport(rows)}><FileText size={15} />Unduh CSV / Excel</button><button className="primary-button compact" onClick={printRecap}><Printer size={15} />Cetak / PDF</button></div><div className="recap-scroller"><table className="recap-table"><thead><tr>{rows[0].map((cell, index) => <th key={index}>{cell}</th>)}</tr></thead><tbody>{rows.slice(1).map((row, index) => <tr key={visible[index]?.id}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell || "—"}</td>)}</tr>)}</tbody></table></div>{visible.length === 0 && <EmptyState title="Belum ada data" text="Ubah filter atau tambahkan data santri." />}</section>;
+}
+
 function ReportGradePanel({ current, subjects, scores, setScores, average, passed, completion, semester, onSave, onPreview }: { current: Student; subjects: Subject[]; scores: number[]; setScores: (v: number[]) => void; average: number; passed: boolean; completion: number; semester: string; onSave: () => void; onPreview: () => void }) {
   const activeSubjects = subjects.filter((subject) => subject.active);
   return <section className="panel report-editor"><header className="report-student-header"><StudentIdentity student={current} /><div><span>{current.level}</span><span>{semester}</span><span>{academicYear}</span></div></header><div className="report-summary"><div><span>Rata-rata</span><strong>{average}</strong></div><div><span>Predikat</span><strong>{reportPredicate(average)[0]}</strong><small>{reportPredicate(average)[1]}</small></div><div><span>Status</span><strong className={passed ? "report-pass" : "report-fail"}>{passed ? "Lulus" : "Belum Lulus"}</strong></div><div><span>Kelengkapan</span><strong>{completion}%</strong></div></div><div className="report-table"><div className="report-table-head"><span>No.</span><span>Mata pelajaran</span><span>KKM</span><span>Nilai</span><span>Predikat</span><span>Keterangan</span></div>{activeSubjects.map((subject, index) => { const value = scores[subject.order] ?? 0; const predicate = reportPredicate(value); return <div className="report-table-row" key={subject.id}><span>{index + 1}</span><span><strong>{subject.name}</strong><small>{subject.arabicName}</small></span><span>70</span><input aria-label={`Nilai ${subject.name}`} type="number" min="0" max="100" value={value} onChange={(event) => setScores(scores.map((score, scoreIndex) => scoreIndex === subject.order ? Math.max(0, Math.min(100, Number(event.target.value))) : score))} /><span className={`predicate predicate-${predicate[0].toLowerCase()}`}>{predicate[0]}</span><span>{value === 0 ? "Belum diisi" : predicate[1]}</span></div>; })}</div><footer className="report-actions"><div><span>Pastikan seluruh nilai sudah benar.</span><small>Nilai minimum kelulusan adalah 70.</small></div><button className="ghost-action" onClick={onPreview}><Eye size={15} />Pratinjau</button><button className="primary-button" onClick={onSave}><Save size={15} />Simpan Nilai</button></footer></section>;
 }
 
-function CertificatesView({ students, onPreview, onIssue }: { students: Student[]; onPreview: (s: Student) => void; onIssue: (s: Student) => void }) {
-  return <section className="panel full-panel"><PanelHeader title="Daftar ijazah" subtitle="Ijazah hanya dapat diterbitkan untuk santri berstatus lulus." /><div className="certificate-grid">{students.map((student) => <article className="certificate-card" key={student.id}><div className="certificate-card-icon"><Award size={22} /></div><StudentIdentity student={student} /><div className="certificate-card-meta"><span>Nilai akhir <b>{student.score}</b></span><span className={`issue-status ${student.certificateStatus === "Terbit" ? "issued" : ""}`}>{student.certificateStatus === "Terbit" ? "Sudah terbit" : "Belum terbit"}</span></div><div className="certificate-card-actions">{student.certificateStatus === "Terbit" && <button className="ghost-action" onClick={() => onPreview(student)}><Eye size={15} />Preview</button>}<button className="primary-button compact" disabled={student.status !== "Lulus"} onClick={() => onIssue(student)}><FileCheck2 size={15} />{student.certificateStatus === "Terbit" ? "Terbitkan ulang" : "Terbitkan"}</button></div></article>)}</div></section>;
+function CertificatesView({ students, onPreview, onValidate, onIssue }: { students: Student[]; onPreview: (s: Student) => void; onValidate: (s: Student) => void; onIssue: (s: Student) => void }) {
+  return <section className="panel full-panel"><PanelHeader title="Daftar ijazah" subtitle="Alur: lengkapi data dan nilai → validasi → terbitkan → cetak PDF." /><div className="certificate-grid">{students.map((student) => {
+    const issues = certificateValidationIssues(student);
+    const state = student.certificateStatus ?? "Belum";
+    return <article className="certificate-card" key={student.id}><div className="certificate-card-icon"><Award size={22} /></div><StudentIdentity student={student} /><div className="certificate-card-meta"><span>Nilai akhir <b>{student.score}</b></span><span className={`issue-status ${state === "Terbit" ? "issued" : ""}`}>{state === "Terbit" ? "Sudah terbit" : state === "Validasi" ? "Tervalidasi" : "Draf"}</span></div>{issues.length > 0 && <small className="validation-note">Perlu dilengkapi: {issues.join(", ")}</small>}<div className="certificate-card-actions">{state === "Terbit" ? <button className="ghost-action" onClick={() => onPreview(student)}><Eye size={15} />Pratinjau / PDF</button> : state === "Validasi" ? <button className="primary-button compact" onClick={() => onIssue(student)}><FileCheck2 size={15} />Terbitkan</button> : <button className="primary-button compact" disabled={issues.length > 0} onClick={() => onValidate(student)}><Check size={15} />Validasi</button>}</div></article>;
+  })}</div></section>;
 }
 
 function SubjectsView({ subjects, setSubjects, onSave }: { subjects: Subject[]; setSubjects: (s: Subject[]) => void; onSave: () => void }) {

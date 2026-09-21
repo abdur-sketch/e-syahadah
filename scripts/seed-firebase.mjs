@@ -3,6 +3,10 @@ import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, signOut } from "firebase/auth";
 import { collection, doc, getDocs, getFirestore, serverTimestamp, terminate, writeBatch } from "firebase/firestore";
 
+if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+  throw new Error("Seed hanya boleh dijalankan pada emulator Firestore dan Authentication; data produksi tidak akan ditimpa.");
+}
+
 const { loadEnvConfig } = nextEnv;
 loadEnvConfig(process.cwd());
 

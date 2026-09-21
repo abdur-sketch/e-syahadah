@@ -29,7 +29,7 @@ export type Student = {
   birthPlace?: string;
   birthDate?: string;
   guardian?: string;
-  certificateStatus?: "Belum" | "Terbit";
+  certificateStatus?: "Belum" | "Validasi" | "Terbit";
 };
 
 function fromFirestore(snapshot: QueryDocumentSnapshot<DocumentData>): Student | null {
@@ -59,7 +59,7 @@ function fromFirestore(snapshot: QueryDocumentSnapshot<DocumentData>): Student |
     birthPlace: typeof data.birthPlace === "string" ? data.birthPlace : "",
     birthDate: typeof data.birthDate === "string" ? data.birthDate : "",
     guardian: typeof data.guardian === "string" ? data.guardian : "",
-    certificateStatus: data.certificateStatus === "Terbit" ? "Terbit" : "Belum",
+    certificateStatus: data.certificateStatus === "Terbit" ? "Terbit" : data.certificateStatus === "Validasi" ? "Validasi" : "Belum",
   };
 }
 

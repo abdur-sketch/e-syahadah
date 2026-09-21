@@ -21,9 +21,15 @@ export function buildStudentsCsv(students: Student[]): string {
     ]),
   ];
 
-  return rows
-    .map((row) => row.map((value) => `"${String(value ?? "").replace(/"/g, '""')}"`).join(","))
-    .join("\n");
+  return buildCsv(rows);
+}
+
+export function buildCsv(rows: (string | number)[][]): string {
+  return '\uFEFF' + rows.map((row) => row.map((value) => {
+    const text = String(value ?? '');
+    const safe = /^[\s]*[=+@-]/.test(text) ? `'${text}` : text;
+    return `"${safe.replace(/"/g, '""')}"`;
+  }).join(',')).join('\r\n');
 }
 
 export function loadAuditEntries(storageKey: string): AuditEntry[] {

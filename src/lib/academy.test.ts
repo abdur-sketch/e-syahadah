@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { averageScore, getCertificateCandidates, getStudentStatus } from './academy';
+import { averageScore, certificateValidationIssues, getCertificateCandidates, getStudentStatus } from './academy';
 
 test('averageScore calculates the rounded mean for a score array', () => {
   assert.equal(averageScore([80, 90, 70]), 80);
@@ -21,4 +21,10 @@ test('getCertificateCandidates returns only eligible and unissued students', () 
   ] as const;
 
   assert.deepEqual(getCertificateCandidates(students).map((student) => student.id), ['b']);
+});
+
+test('certificate validation requires identity, full scores, and passing result', () => {
+  const valid = { name: 'Ahmad', arabicName: 'أحمد', nisn: '123', birthPlace: 'Jakarta', birthDate: '2006-01-01', status: 'Lulus' as const, scores: Array(11).fill(80) };
+  assert.deepEqual(certificateValidationIssues(valid), []);
+  assert.deepEqual(certificateValidationIssues({ ...valid, scores: [80, 80, 0] }), ['11 nilai mata pelajaran', 'kelulusan (rata-rata minimal 70)']);
 });
