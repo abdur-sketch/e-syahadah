@@ -27,7 +27,7 @@ const app = isFirebaseConfigured
 export const firebaseAuth = app ? getAuth(app) : null;
 export const firestore = app ? getFirestore(app) : null;
 
-const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL?.trim().toLowerCase();
+const adminEmail = "baikganteng88@gmail.com";
 
 export function isAdminUser(user: User | null): user is User {
   return Boolean(user && adminEmail && user.email?.toLowerCase() === adminEmail && user.emailVerified && user.providerData.some((provider) => provider.providerId === "google.com"));

@@ -1,7 +1,15 @@
 {
   "auth": {
     "providers": {
-      "anonymous": true
+      "anonymous": false,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "E-Syahadah",
+        "supportEmail": "baikganteng88@gmail.com",
+        "authorizedRedirectUris": [
+          "https://e-syahadah-2026.firebaseapp.com/__/auth/handler",
+          "https://e-syahadah-2026.web.app/__/auth/handler"
+        ]
+      }
     }
   },
   "firestore": {

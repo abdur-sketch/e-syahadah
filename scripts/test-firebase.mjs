@@ -14,12 +14,17 @@ const app = initializeApp({
 }, "firebase-smoke-test");
 const auth = getAuth(app);
 const db = getFirestore(app);
-await signInAnonymously(auth);
+let anonymousDisabled = false;
+try { await signInAnonymously(auth); }
+catch (error) {
+  anonymousDisabled = ["auth/admin-restricted-operation", "auth/operation-not-allowed"].includes(error?.code);
+  if (!anonymousDisabled) throw error;
+}
 
 let denied = false;
 try { await getDoc(doc(db, "settings", "institution")); }
 catch (error) { denied = error?.code === "permission-denied"; }
-if (!denied) throw new Error("Akun anonim masih dapat membaca data. Aturan admin belum aktif.");
-console.log("Tes keamanan lulus: akun anonim tidak dapat membaca data.");
-await signOut(auth);
+if (!denied) throw new Error("Akun non-admin masih dapat membaca data. Aturan admin belum aktif.");
+console.log(`Tes keamanan lulus: ${anonymousDisabled ? "login anonim dinonaktifkan dan " : "akun anonim "}tidak dapat membaca data.`);
+if (auth.currentUser) await signOut(auth);
 await terminate(db);

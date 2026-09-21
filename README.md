@@ -13,11 +13,13 @@ Aplikasi administrasi pesantren dan ijazah dua halaman berbahasa Arab. Situs: ht
 ## Menjalankan lokal
 
 1. `npm install`
-2. Salin `.env.example` ke `.env.local` dan isi konfigurasi Firebase serta `NEXT_PUBLIC_ADMIN_EMAIL`.
+2. Salin `.env.example` ke `.env.local` dan isi konfigurasi Firebase.
 3. Aktifkan provider Google di Firebase Authentication dan pastikan domain aplikasi tercantum sebagai authorized domain.
 4. `npm run dev`, lalu buka http://localhost:3000.
 
-Aturan Firestore harus dibatasi ke email admin yang sama dengan konfigurasi aplikasi sebelum aplikasi dipublikasikan. Jangan gunakan passcode di variabel `NEXT_PUBLIC_*` sebagai pengaman; nilainya dapat dibaca dari browser. `npm run firebase:test` hanya menguji bahwa akun anonim ditolak dan tidak mengubah data produksi. Jangan menjalankan `firebase:seed` pada database yang sudah berisi data nyata.
+Hanya `baikganteng88@gmail.com` yang diberi akses admin oleh aplikasi dan Firestore Security Rules. Provider Anonymous dinonaktifkan. Jangan gunakan passcode di variabel `NEXT_PUBLIC_*` sebagai pengaman; nilainya dapat dibaca dari browser. `npm run firebase:test` menguji penolakan akses non-admin tanpa mengubah data produksi. Jangan menjalankan `firebase:seed` pada database yang sudah berisi data nyata.
+
+Akun admin baru muncul di daftar Firebase Authentication setelah pemilik masuk pertama kali melalui tombol **Masuk dengan Google** pada situs.
 
 ## Verifikasi
 
