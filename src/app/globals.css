@@ -1205,7 +1205,14 @@ button {
 }
 .template-block.editable.selected {
   outline: 2px solid #dc704a;
-  background: #fff9f28f;
+  background: transparent;
+}
+.template-block.editable,
+.template-block.editable > :not(.image-layer),
+.template-block.editable table,
+.template-block.editable th,
+.template-block.editable td {
+  background-color: transparent;
 }
 .template-block.coverWatermark {
   z-index: 2;
