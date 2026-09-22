@@ -1752,6 +1752,9 @@ function TemplateDesigner({ template, setTemplate, student, scores, subjects, in
             <strong>Edit teks: {templateLabels[selected]}</strong>
             <textarea
               dir="auto"
+              lang="ar"
+              wrap="soft"
+              aria-label={`Edit teks ${templateLabels[selected]}`}
               value={editableText}
               onChange={(e) =>
                 setTemplate({
@@ -1760,6 +1763,7 @@ function TemplateDesigner({ template, setTemplate, student, scores, subjects, in
                 })
               }
             />
+            <small className="editor-enter-hint">Tekan Enter untuk membuat baris baru. Baris baru akan tampil sama pada pratinjau, hasil cetak, dan PDF.</small>
             <div className="typography-grid">
               <label>
                 Jenis font

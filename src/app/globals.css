@@ -1259,7 +1259,7 @@ button {
   width: 64%;
 }
 .coverDecision {
-  width: 72%;
+  width: 68%;
 }
 .coverSignature {
   width: 45%;
@@ -1314,6 +1314,11 @@ button {
   font-size: 10px;
   line-height: 1.8;
   text-align: justify;
+  white-space: pre-line;
+  overflow-wrap: break-word;
+}
+.template-block.coverDecision {
+  transform: translate(-50%, 0);
 }
 .template-block .photo-box {
   width: 72px;
@@ -1555,6 +1560,12 @@ button {
 .text-editor textarea:focus {
   border-color: #dd987d;
   box-shadow: 0 0 0 3px #f8e4db;
+}
+.editor-enter-hint {
+  display: block;
+  margin-top: -4px;
+  color: #776f68 !important;
+  line-height: 1.45;
 }
 .text-editor small {
   color: #9a9188;
