@@ -1,35 +1,148 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Award, Bell, BookOpen, CalendarDays, Check, ChevronDown, ClipboardList, Eye, FileCheck2, FileText, GraduationCap, ImagePlus, LayoutDashboard, LockKeyhole, Menu, MessageCircle, Moon, MoreHorizontal, Move, Pencil, Plus, Printer, RotateCcw, Save, Search, Settings, SlidersHorizontal, Sparkles, Sun, Trash2, UserPlus, Users, X } from "lucide-react";
+import { Award, Bell, BookOpen, CalendarDays, Check, ClipboardList, Eye, FileCheck2, FileText, GraduationCap, ImagePlus, LayoutDashboard, LockKeyhole, Menu, MessageCircle, Moon, MoreHorizontal, Move, Pencil, Plus, Printer, RotateCcw, Save, Search, Settings, SlidersHorizontal, Sparkles, Sun, Trash2, UserPlus, Users, X } from "lucide-react";
 import { isFirebaseConfigured, observeAdmin, signInAdmin, signOutAdmin } from "@/lib/firebase";
 import { deleteStudent, saveStudent, subscribeToStudents, type Student } from "@/lib/students";
 import { defaultSubjects, saveSubjects, subscribeToSubjects, type Subject } from "@/lib/subjects";
 import { defaultSettings, saveSettings, subscribeToSettings, type InstitutionSettings } from "@/lib/settings";
 import { averageScore, certificateValidationIssues, getCertificateCandidates, getStudentStatus } from "@/lib/academy";
-import { appendAuditEntry, buildCsv, buildStudentsCsv, loadAuditEntries } from "@/lib/admin";
+import { appendAuditEntry, buildCsv, buildStudentsCsv } from "@/lib/admin";
 import { defaultTemplate, saveTemplate, subscribeToTemplate, templateLabels, type CertificateTemplate, type TemplateElementId } from "@/lib/template";
 
 const initialScores = [82, 88, 76, 91, 84, 79, 86, 90, 81, 87, 85];
 const demoStudents: Student[] = [
-  { name: "Ahmad Fauzan", arabicName: "أحمد فوزان", initials: "AF", id: "SYH-2026-001", level: "Ulya", status: "Lulus", score: 84, tone: "rose", scores: initialScores, nisn: "0061234501", birthPlace: "Jakarta", birthDate: "2006-04-12", guardian: "Abdul Karim", certificateStatus: "Belum" },
-  { name: "Siti Aisyah", arabicName: "ستي عائشة", initials: "SA", id: "SYH-2026-002", level: "Ulya", status: "Lulus", score: 92, tone: "lavender", scores: [92, 94, 90, 93, 88, 91, 95, 89, 90, 94, 92], nisn: "0061234502", birthPlace: "Bandung", birthDate: "2006-08-21", guardian: "Hasan Basri", certificateStatus: "Terbit" },
-  { name: "Muhammad Rizky", arabicName: "محمد رزقي", initials: "MR", id: "SYH-2026-003", level: "Wustha", status: "Proses", score: 74, tone: "mint", scores: [72, 76, 70, 78, 74, 71, 73, 75, 70, 77, 74], nisn: "0071234503", birthPlace: "Bogor", birthDate: "2007-01-17", guardian: "Fahmi Idris", certificateStatus: "Belum" },
-  { name: "Nurul Hidayah", arabicName: "نور الهداية", initials: "NH", id: "SYH-2026-004", level: "Ulya", status: "Lulus", score: 88, tone: "peach", scores: [88, 90, 84, 92, 86, 87, 89, 91, 85, 90, 86], nisn: "0061234504", birthPlace: "Bekasi", birthDate: "2006-11-02", guardian: "Muhammad Ilyas", certificateStatus: "Terbit" },
-  { name: "Abdullah Fikri", arabicName: "عبد الله فكري", initials: "AF", id: "SYH-2026-005", level: "Ulya", status: "Lulus", score: 83, tone: "sky", scores: [82, 85, 80, 86, 84, 79, 83, 87, 81, 85, 82], nisn: "0061234505", birthPlace: "Depok", birthDate: "2006-06-09", guardian: "Syamsul Arifin", certificateStatus: "Belum" },
+  {
+    name: "Ahmad Fauzan",
+    arabicName: "أحمد فوزان",
+    initials: "AF",
+    id: "SYH-2026-001",
+    level: "Ulya",
+    status: "Lulus",
+    score: 84,
+    tone: "rose",
+    scores: initialScores,
+    nisn: "0061234501",
+    birthPlace: "Jakarta",
+    birthDate: "2006-04-12",
+    guardian: "Abdul Karim",
+    certificateStatus: "Belum",
+  },
+  {
+    name: "Siti Aisyah",
+    arabicName: "ستي عائشة",
+    initials: "SA",
+    id: "SYH-2026-002",
+    level: "Ulya",
+    status: "Lulus",
+    score: 92,
+    tone: "lavender",
+    scores: [92, 94, 90, 93, 88, 91, 95, 89, 90, 94, 92],
+    nisn: "0061234502",
+    birthPlace: "Bandung",
+    birthDate: "2006-08-21",
+    guardian: "Hasan Basri",
+    certificateStatus: "Terbit",
+  },
+  {
+    name: "Muhammad Rizky",
+    arabicName: "محمد رزقي",
+    initials: "MR",
+    id: "SYH-2026-003",
+    level: "Wustha",
+    status: "Proses",
+    score: 74,
+    tone: "mint",
+    scores: [72, 76, 70, 78, 74, 71, 73, 75, 70, 77, 74],
+    nisn: "0071234503",
+    birthPlace: "Bogor",
+    birthDate: "2007-01-17",
+    guardian: "Fahmi Idris",
+    certificateStatus: "Belum",
+  },
+  {
+    name: "Nurul Hidayah",
+    arabicName: "نور الهداية",
+    initials: "NH",
+    id: "SYH-2026-004",
+    level: "Ulya",
+    status: "Lulus",
+    score: 88,
+    tone: "peach",
+    scores: [88, 90, 84, 92, 86, 87, 89, 91, 85, 90, 86],
+    nisn: "0061234504",
+    birthPlace: "Bekasi",
+    birthDate: "2006-11-02",
+    guardian: "Muhammad Ilyas",
+    certificateStatus: "Terbit",
+  },
+  {
+    name: "Abdullah Fikri",
+    arabicName: "عبد الله فكري",
+    initials: "AF",
+    id: "SYH-2026-005",
+    level: "Ulya",
+    status: "Lulus",
+    score: 83,
+    tone: "sky",
+    scores: [82, 85, 80, 86, 84, 79, 83, 87, 81, 85, 82],
+    nisn: "0061234505",
+    birthPlace: "Depok",
+    birthDate: "2006-06-09",
+    guardian: "Syamsul Arifin",
+    certificateStatus: "Belum",
+  },
 ];
-const navItems = [{ label: "Dashboard", icon: LayoutDashboard }, { label: "Data Santri", icon: Users }, { label: "E-Raport", icon: ClipboardList }, { label: "Rekap Kelas", icon: BookOpen }, { label: "Ijazah", icon: FileCheck2 }];
+const navItems = [
+  { label: "Dashboard", icon: LayoutDashboard },
+  { label: "Data Santri", icon: Users },
+  { label: "E-Raport", icon: ClipboardList },
+  { label: "Rekap Kelas", icon: BookOpen },
+  { label: "Ijazah", icon: FileCheck2 },
+];
 const now = new Date();
-const today = new Intl.DateTimeFormat("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta" }).format(now).toUpperCase();
-const currentYear = Number(new Intl.DateTimeFormat("en", { year: "numeric", timeZone: "Asia/Jakarta" }).format(now));
-const currentMonth = Number(new Intl.DateTimeFormat("en", { month: "numeric", timeZone: "Asia/Jakarta" }).format(now));
+const today = new Intl.DateTimeFormat("id-ID", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "Asia/Jakarta",
+})
+  .format(now)
+  .toUpperCase();
+const currentYear = Number(
+  new Intl.DateTimeFormat("en", {
+    year: "numeric",
+    timeZone: "Asia/Jakarta",
+  }).format(now),
+);
+const currentMonth = Number(
+  new Intl.DateTimeFormat("en", {
+    month: "numeric",
+    timeZone: "Asia/Jakarta",
+  }).format(now),
+);
 const academicYear = currentMonth >= 7 ? `${currentYear}/${currentYear + 1}` : `${currentYear - 1}/${currentYear}`;
 const tones = ["rose", "lavender", "mint", "peach", "sky"];
 const certificateFonts = ["Times New Roman", "Traditional Arabic", "Arial", "Georgia", "Courier New"];
 
-function numberToArabic(value: number) { return value.toString().replace(/[0-9]/g, (digit) => "٠١٢٣٤٥٦٧٨٩"[Number(digit)]); }
-function scoreWord(score: number) { if (score >= 90) return "ممتاز"; if (score >= 80) return "جيد جداً"; if (score >= 70) return "جيد"; return "مقبول"; }
-function getInitials(name: string) { return name.split(/\s+/).slice(0, 2).map((word) => word[0]).join("").toUpperCase(); }
+function numberToArabic(value: number) {
+  return value.toString().replace(/[0-9]/g, (digit) => "٠١٢٣٤٥٦٧٨٩"[Number(digit)]);
+}
+function scoreWord(score: number) {
+  if (score >= 90) return "ممتاز";
+  if (score >= 80) return "جيد جداً";
+  if (score >= 70) return "جيد";
+  return "مقبول";
+}
+function getInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase();
+}
 
 export default function Home() {
   const [activeNav, setActiveNav] = useState("Dashboard");
@@ -51,7 +164,6 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [syncState, setSyncState] = useState<"demo" | "connecting" | "connected" | "saving" | "saved" | "error">(isFirebaseConfigured ? "connecting" : "demo");
-  const [auditEntries, setAuditEntries] = useState(loadAuditEntries("e-syahadah-audit"));
   const [adminAuthenticated, setAdminAuthenticated] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [adminError, setAdminError] = useState("");
@@ -61,21 +173,33 @@ export default function Home() {
   const currentStudent = students.find((student) => student.id === selectedId) ?? students[0] ?? demoStudents[0];
   const average = averageScore(scores);
   const passed = getStudentStatus(scores) === "Lulus";
-  const filteredStudents = useMemo(() => students.filter((student) =>
-    (student.name.toLowerCase().includes(search.toLowerCase()) || student.id.toLowerCase().includes(search.toLowerCase())) &&
-    (levelFilter === "Semua" || student.level === levelFilter) && (statusFilter === "Semua" || student.status === statusFilter)
-  ), [levelFilter, search, statusFilter, students]);
+  const filteredStudents = useMemo(() => students.filter((student) => (student.name.toLowerCase().includes(search.toLowerCase()) || student.id.toLowerCase().includes(search.toLowerCase())) && (levelFilter === "Semua" || student.level === levelFilter) && (statusFilter === "Semua" || student.status === statusFilter)), [levelFilter, search, statusFilter, students]);
   const passedCount = students.filter((student) => getStudentStatus(student.scores ?? []) === "Lulus").length;
   const issuedCount = students.filter((student) => student.certificateStatus === "Terbit").length;
   const pendingCount = getCertificateCandidates(students).length;
   const progress = passedCount ? Math.round((issuedCount / passedCount) * 100) : 0;
 
-  function notify(message: string) { setToast(message); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(""), 3200); }
-  function logAudit(action: string, message: string) { const next = appendAuditEntry("e-syahadah-audit", { action, message, createdAt: new Date().toISOString() }); setAuditEntries(next); }
+  function notify(message: string) {
+    setToast(message);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(""), 3200);
+  }
+  function logAudit(action: string, message: string) {
+    appendAuditEntry("e-syahadah-audit", {
+      action,
+      message,
+      createdAt: new Date().toISOString(),
+    });
+  }
   async function handleAdminLogin() {
     setAdminError("");
-    try { await signInAdmin(); logAudit("admin-login", "Admin berhasil masuk ke panel"); notify("Login admin berhasil."); }
-    catch (error) { setAdminError(error instanceof Error ? error.message : "Login Google gagal."); }
+    try {
+      await signInAdmin();
+      logAudit("admin-login", "Admin berhasil masuk ke panel");
+      notify("Login admin berhasil.");
+    } catch (error) {
+      setAdminError(error instanceof Error ? error.message : "Login Google gagal.");
+    }
   }
   async function handleAdminLogout() {
     await signOutAdmin();
@@ -83,62 +207,260 @@ export default function Home() {
     logAudit("admin-logout", "Admin keluar dari panel");
     notify("Keluar dari mode admin");
   }
-  function navigate(label: string) { setActiveNav(label); setMobileMenuOpen(false); setSearch(""); }
-  function chooseStudent(student: Student) { selectedIdRef.current = student.id; setSelectedId(student.id); setScores([...student.scores]); }
-  function makeStudent(): Student { const number = String(students.length + 1).padStart(3, "0"); return { id: `SYH-${currentYear}-${number}`, name: "", arabicName: "", initials: "", level: "Ulya", status: "Proses", score: 0, tone: tones[students.length % tones.length], scores: Array(11).fill(0), nisn: "", birthPlace: "", birthDate: "", guardian: "", certificateStatus: "Belum" }; }
-  function openAddStudent() { setIsNewStudent(true); setStudentForm(makeStudent()); }
-  function openEditStudent(student: Student) { setIsNewStudent(false); setStudentForm({ ...student, scores: [...student.scores] }); }
+  function navigate(label: string) {
+    setActiveNav(label);
+    setMobileMenuOpen(false);
+    setSearch("");
+  }
+  function chooseStudent(student: Student) {
+    selectedIdRef.current = student.id;
+    setSelectedId(student.id);
+    setScores([...student.scores]);
+  }
+  function makeStudent(): Student {
+    const number = String(students.length + 1).padStart(3, "0");
+    return {
+      id: `SYH-${currentYear}-${number}`,
+      name: "",
+      arabicName: "",
+      initials: "",
+      level: "Ulya",
+      status: "Proses",
+      score: 0,
+      tone: tones[students.length % tones.length],
+      scores: Array(11).fill(0),
+      nisn: "",
+      birthPlace: "",
+      birthDate: "",
+      guardian: "",
+      certificateStatus: "Belum",
+    };
+  }
+  function openAddStudent() {
+    setIsNewStudent(true);
+    setStudentForm(makeStudent());
+  }
+  function openEditStudent(student: Student) {
+    setIsNewStudent(false);
+    setStudentForm({ ...student, scores: [...student.scores] });
+  }
   async function submitStudent(event: FormEvent) {
     event.preventDefault();
     if (!studentForm?.name.trim() || !studentForm.id.trim()) return notify("Nama dan nomor syahadah wajib diisi.");
     if (isNewStudent && students.some((student) => student.id === studentForm.id.trim())) return notify("Nomor syahadah sudah digunakan.");
     const preparedScore = averageScore(studentForm.scores);
-    const prepared = { ...studentForm, name: studentForm.name.trim(), initials: getInitials(studentForm.name), score: preparedScore, status: getStudentStatus(studentForm.scores) as Student["status"], certificateStatus: "Belum" as const };
-    try { setSyncState("saving"); if (isFirebaseConfigured) await saveStudent(prepared, academicYear); setStudents((list) => isNewStudent ? [...list, prepared] : list.map((item) => item.id === prepared.id ? prepared : item)); setStudentForm(null); setSyncState(isFirebaseConfigured ? "saved" : "demo"); logAudit("student-save", isNewStudent ? `Menambahkan santri ${prepared.name}` : `Memperbarui data santri ${prepared.name}`); notify(isNewStudent ? "Santri berhasil ditambahkan." : "Data santri diperbarui."); }
-    catch (error) { console.error(error); setSyncState("error"); notify("Data gagal disimpan. Periksa Firebase."); }
+    const prepared = {
+      ...studentForm,
+      name: studentForm.name.trim(),
+      initials: getInitials(studentForm.name),
+      score: preparedScore,
+      status: getStudentStatus(studentForm.scores) as Student["status"],
+      certificateStatus: "Belum" as const,
+    };
+    try {
+      setSyncState("saving");
+      if (isFirebaseConfigured) await saveStudent(prepared, academicYear);
+      setStudents((list) => (isNewStudent ? [...list, prepared] : list.map((item) => (item.id === prepared.id ? prepared : item))));
+      setStudentForm(null);
+      setSyncState(isFirebaseConfigured ? "saved" : "demo");
+      logAudit("student-save", isNewStudent ? `Menambahkan santri ${prepared.name}` : `Memperbarui data santri ${prepared.name}`);
+      notify(isNewStudent ? "Santri berhasil ditambahkan." : "Data santri diperbarui.");
+    } catch (error) {
+      console.error(error);
+      setSyncState("error");
+      notify("Data gagal disimpan. Periksa Firebase.");
+    }
   }
   async function removeStudent(student: Student) {
     if (students.length === 1) return notify("Minimal satu data santri harus tersedia.");
     if (!window.confirm(`Hapus data ${student.name}? Tindakan ini tidak dapat dibatalkan.`)) return;
-    try { if (isFirebaseConfigured) await deleteStudent(student.id); setStudents((list) => list.filter((item) => item.id !== student.id)); if (selectedId === student.id) { const next = students.find((item) => item.id !== student.id); if (next) chooseStudent(next); } notify("Data santri dihapus."); }
-    catch (error) { console.error(error); notify("Data gagal dihapus."); }
+    try {
+      if (isFirebaseConfigured) await deleteStudent(student.id);
+      setStudents((list) => list.filter((item) => item.id !== student.id));
+      if (selectedId === student.id) {
+        const next = students.find((item) => item.id !== student.id);
+        if (next) chooseStudent(next);
+      }
+      notify("Data santri dihapus.");
+    } catch (error) {
+      console.error(error);
+      notify("Data gagal dihapus.");
+    }
   }
   async function saveGrades() {
-    const updated = { ...currentStudent, scores, score: average, status: passed ? "Lulus" as const : "Proses" as const, certificateStatus: "Belum" as const };
-    try { setSyncState("saving"); if (isFirebaseConfigured) await saveStudent(updated, academicYear); setStudents((list) => list.map((student) => student.id === updated.id ? updated : student)); setSyncState(isFirebaseConfigured ? "saved" : "demo"); notify("Nilai berhasil disimpan."); }
-    catch (error) { console.error(error); setSyncState("error"); notify("Nilai gagal disimpan."); }
+    const updated = {
+      ...currentStudent,
+      scores,
+      score: average,
+      status: passed ? ("Lulus" as const) : ("Proses" as const),
+      certificateStatus: "Belum" as const,
+    };
+    try {
+      setSyncState("saving");
+      if (isFirebaseConfigured) await saveStudent(updated, academicYear);
+      setStudents((list) => list.map((student) => (student.id === updated.id ? updated : student)));
+      setSyncState(isFirebaseConfigured ? "saved" : "demo");
+      notify("Nilai berhasil disimpan.");
+    } catch (error) {
+      console.error(error);
+      setSyncState("error");
+      notify("Nilai gagal disimpan.");
+    }
   }
   async function issueCertificate(student: Student) {
     if (student.certificateStatus !== "Validasi") return notify("Validasi data dan nilai terlebih dahulu.");
     const issues = certificateValidationIssues(student);
     if (issues.length) return notify(`Lengkapi: ${issues.join(", ")}.`);
     const updated = { ...student, certificateStatus: "Terbit" as const };
-    try { if (isFirebaseConfigured) await saveStudent(updated, academicYear); setStudents((list) => list.map((item) => item.id === student.id ? updated : item)); chooseStudent(updated); setShowPreview(true); logAudit("certificate-issued", `Menerbitkan ijazah untuk ${student.name}`); notify("Ijazah berhasil diterbitkan."); }
-    catch (error) { console.error(error); notify("Ijazah gagal diterbitkan."); }
+    try {
+      if (isFirebaseConfigured) await saveStudent(updated, academicYear);
+      setStudents((list) => list.map((item) => (item.id === student.id ? updated : item)));
+      chooseStudent(updated);
+      setShowPreview(true);
+      logAudit("certificate-issued", `Menerbitkan ijazah untuk ${student.name}`);
+      notify("Ijazah berhasil diterbitkan.");
+    } catch (error) {
+      console.error(error);
+      notify("Ijazah gagal diterbitkan.");
+    }
   }
   async function validateCertificate(student: Student) {
     const issues = certificateValidationIssues(student);
     if (issues.length) return notify(`Lengkapi: ${issues.join(", ")}.`);
     const updated = { ...student, certificateStatus: "Validasi" as const };
-    try { if (isFirebaseConfigured) await saveStudent(updated, academicYear); setStudents((list) => list.map((item) => item.id === student.id ? updated : item)); logAudit("certificate-validated", `Memvalidasi ${student.name}`); notify("Data dan nilai tervalidasi. Ijazah siap diterbitkan."); }
-    catch (error) { console.error(error); notify("Validasi gagal disimpan."); }
+    try {
+      if (isFirebaseConfigured) await saveStudent(updated, academicYear);
+      setStudents((list) => list.map((item) => (item.id === student.id ? updated : item)));
+      logAudit("certificate-validated", `Memvalidasi ${student.name}`);
+      notify("Data dan nilai tervalidasi. Ijazah siap diterbitkan.");
+    } catch (error) {
+      console.error(error);
+      notify("Validasi gagal disimpan.");
+    }
   }
-  async function persistSubjects() { try { if (isFirebaseConfigured) await saveSubjects(subjects); logAudit("subjects-save", "Menyimpan daftar mata pelajaran"); notify("Mata pelajaran berhasil disimpan."); } catch (error) { console.error(error); notify("Mata pelajaran gagal disimpan."); } }
-  async function persistSettings(event: FormEvent) { event.preventDefault(); try { if (isFirebaseConfigured) await saveSettings(settingsForm); setInstitution(settingsForm); logAudit("settings-save", `Menyimpan pengaturan lembaga ${settingsForm.name}`); notify("Pengaturan pesantren berhasil disimpan."); } catch (error) { console.error(error); notify("Pengaturan gagal disimpan."); } }
-  async function persistTemplate() { try { if (isFirebaseConfigured) await saveTemplate(template); logAudit("template-save", "Menyimpan desain ijazah"); notify("Desain ijazah berhasil disimpan."); } catch (error) { console.error(error); notify("Desain ijazah gagal disimpan."); } }
+  async function persistSubjects() {
+    try {
+      if (isFirebaseConfigured) await saveSubjects(subjects);
+      logAudit("subjects-save", "Menyimpan daftar mata pelajaran");
+      notify("Mata pelajaran berhasil disimpan.");
+    } catch (error) {
+      console.error(error);
+      notify("Mata pelajaran gagal disimpan.");
+    }
+  }
+  async function persistSettings(event: FormEvent) {
+    event.preventDefault();
+    try {
+      if (isFirebaseConfigured) await saveSettings(settingsForm);
+      setInstitution(settingsForm);
+      logAudit("settings-save", `Menyimpan pengaturan lembaga ${settingsForm.name}`);
+      notify("Pengaturan pesantren berhasil disimpan.");
+    } catch (error) {
+      console.error(error);
+      notify("Pengaturan gagal disimpan.");
+    }
+  }
+  async function persistTemplate() {
+    try {
+      if (isFirebaseConfigured) await saveTemplate(template);
+      logAudit("template-save", "Menyimpan desain ijazah");
+      notify("Desain ijazah berhasil disimpan.");
+    } catch (error) {
+      console.error(error);
+      notify("Desain ijazah gagal disimpan.");
+    }
+  }
 
-  useEffect(() => { function closeOnEscape(event: KeyboardEvent) { if (event.key === "Escape") { setShowPreview(false); setStudentForm(null); setMobileMenuOpen(false); } } window.addEventListener("keydown", closeOnEscape); return () => window.removeEventListener("keydown", closeOnEscape); }, []);
-  useEffect(() => { const timer = window.setTimeout(() => { const saved = window.localStorage.getItem("e-syahadah-theme"); setDarkMode(saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches); }, 0); return () => window.clearTimeout(timer); }, []);
-  useEffect(() => observeAdmin((user) => { setAdminAuthenticated(Boolean(user)); setCheckingAdmin(false); }), []);
-  function toggleTheme() { setDarkMode((current) => { const next = !current; window.localStorage.setItem("e-syahadah-theme", next ? "dark" : "light"); return next; }); }
+  useEffect(() => {
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setShowPreview(false);
+        setStudentForm(null);
+        setMobileMenuOpen(false);
+      }
+    }
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const saved = window.localStorage.getItem("e-syahadah-theme");
+      setDarkMode(saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+  useEffect(
+    () =>
+      observeAdmin((user) => {
+        setAdminAuthenticated(Boolean(user));
+        setCheckingAdmin(false);
+      }),
+    [],
+  );
+  function toggleTheme() {
+    setDarkMode((current) => {
+      const next = !current;
+      window.localStorage.setItem("e-syahadah-theme", next ? "dark" : "light");
+      return next;
+    });
+  }
   useEffect(() => {
     if (!isFirebaseConfigured || !adminAuthenticated) return;
-    let active = true; const stops: (() => void)[] = [];
-    subscribeToStudents((remote) => { if (!active) return; const selected = remote.find((item) => item.id === selectedIdRef.current) ?? remote[0]; setStudents(remote); if (selected) { selectedIdRef.current = selected.id; setSelectedId(selected.id); setScores([...selected.scores]); } else { setScores(Array(11).fill(0)); } setSyncState("connected"); }, () => setSyncState("error")).then((stop) => active ? stops.push(stop) : stop()).catch(() => setSyncState("error"));
-    subscribeToSubjects(async (remote) => { if (!active) return; if (!remote.length) { await saveSubjects(defaultSubjects); return; } setSubjects(remote); }, () => notify("Mata pelajaran gagal dimuat.")).then((stop) => active ? stops.push(stop) : stop()).catch(() => undefined);
-    subscribeToSettings((data) => { if (!active) return; setInstitution(data); setSettingsForm(data); }, () => notify("Pengaturan gagal dimuat.")).then((stop) => active ? stops.push(stop) : stop()).catch(() => undefined);
-    subscribeToTemplate((data) => { if (active) setTemplate(data); }, () => notify("Template ijazah gagal dimuat.")).then((stop) => active ? stops.push(stop) : stop()).catch(() => undefined);
-    return () => { active = false; stops.forEach((stop) => stop()); };
+    let active = true;
+    const stops: (() => void)[] = [];
+    subscribeToStudents(
+      (remote) => {
+        if (!active) return;
+        const selected = remote.find((item) => item.id === selectedIdRef.current) ?? remote[0];
+        setStudents(remote);
+        if (selected) {
+          selectedIdRef.current = selected.id;
+          setSelectedId(selected.id);
+          setScores([...selected.scores]);
+        } else {
+          setScores(Array(11).fill(0));
+        }
+        setSyncState("connected");
+      },
+      () => setSyncState("error"),
+    )
+      .then((stop) => (active ? stops.push(stop) : stop()))
+      .catch(() => setSyncState("error"));
+    subscribeToSubjects(
+      async (remote) => {
+        if (!active) return;
+        if (!remote.length) {
+          await saveSubjects(defaultSubjects);
+          return;
+        }
+        setSubjects(remote);
+      },
+      () => notify("Mata pelajaran gagal dimuat."),
+    )
+      .then((stop) => (active ? stops.push(stop) : stop()))
+      .catch(() => undefined);
+    subscribeToSettings(
+      (data) => {
+        if (!active) return;
+        setInstitution(data);
+        setSettingsForm(data);
+      },
+      () => notify("Pengaturan gagal dimuat."),
+    )
+      .then((stop) => (active ? stops.push(stop) : stop()))
+      .catch(() => undefined);
+    subscribeToTemplate(
+      (data) => {
+        if (active) setTemplate(data);
+      },
+      () => notify("Template ijazah gagal dimuat."),
+    )
+      .then((stop) => (active ? stops.push(stop) : stop()))
+      .catch(() => undefined);
+    return () => {
+      active = false;
+      stops.forEach((stop) => stop());
+    };
   }, [adminAuthenticated]);
 
   const exportStudents = () => {
@@ -155,52 +477,562 @@ export default function Home() {
   };
 
   if (!adminAuthenticated) {
-    return <main className="app-shell login-shell light"><div className="login-panel"><div className="login-brand"><div className="brand-mark"><Sparkles size={19} /></div><div><strong>E-SYAHADAH</strong><span>Admin Workspace</span></div></div><div className="login-copy"><p className="eyebrow accent">Akses Administrator</p><h1>Masuk ke panel akademik</h1><p>Gunakan akun Google admin yang terdaftar untuk mengelola data santri, nilai, dan ijazah.</p></div>{adminError && <span className="login-error">{adminError}</span>}<button className="primary-button" type="button" disabled={checkingAdmin} onClick={handleAdminLogin}><LockKeyhole size={16} />{checkingAdmin ? "Memeriksa akun…" : "Masuk dengan Google"}</button></div></main>;
+    return (
+      <main className="app-shell login-shell light">
+        <div className="login-panel">
+          <div className="login-brand">
+            <div className="brand-mark">
+              <Sparkles size={19} />
+            </div>
+            <div>
+              <strong>E-SYAHADAH</strong>
+              <span>Admin Workspace</span>
+            </div>
+          </div>
+          <div className="login-copy">
+            <p className="eyebrow accent">Akses Administrator</p>
+            <h1>Masuk ke panel akademik</h1>
+            <p>Gunakan akun Google admin yang terdaftar untuk mengelola data santri, nilai, dan ijazah.</p>
+          </div>
+          {adminError && <span className="login-error">{adminError}</span>}
+          <button className="primary-button" type="button" disabled={checkingAdmin} onClick={handleAdminLogin}>
+            <LockKeyhole size={16} />
+            {checkingAdmin ? "Memeriksa akun…" : "Masuk dengan Google"}
+          </button>
+        </div>
+      </main>
+    );
   }
 
   if (isFirebaseConfigured && (syncState === "connecting" || syncState === "error")) {
-    return <main className="app-shell login-shell light"><div className="login-panel"><div className="login-brand"><div className="brand-mark"><Sparkles size={19} /></div><strong>E-SYAHADAH</strong></div><div className="login-copy"><h1>{syncState === "connecting" ? "Memuat data akademik…" : "Data belum dapat dimuat"}</h1><p>{syncState === "connecting" ? "Menghubungkan akun admin dengan Firebase." : "Periksa izin akun atau koneksi Firebase. Data contoh tidak akan digunakan untuk menggantikan data asli."}</p></div>{syncState === "error" && <button className="primary-button" onClick={() => window.location.reload()}>Coba lagi</button>}</div></main>;
+    return (
+      <main className="app-shell login-shell light">
+        <div className="login-panel">
+          <div className="login-brand">
+            <div className="brand-mark">
+              <Sparkles size={19} />
+            </div>
+            <strong>E-SYAHADAH</strong>
+          </div>
+          <div className="login-copy">
+            <h1>{syncState === "connecting" ? "Memuat data akademik…" : "Data belum dapat dimuat"}</h1>
+            <p>{syncState === "connecting" ? "Menghubungkan akun admin dengan Firebase." : "Periksa izin akun atau koneksi Firebase. Data contoh tidak akan digunakan untuk menggantikan data asli."}</p>
+          </div>
+          {syncState === "error" && (
+            <button className="primary-button" onClick={() => window.location.reload()}>
+              Coba lagi
+            </button>
+          )}
+        </div>
+      </main>
+    );
   }
 
-  return <main className={`app-shell ${darkMode ? "dark" : "light"}`}>
-    {mobileMenuOpen && <button className="sidebar-backdrop" aria-label="Tutup menu" onClick={() => setMobileMenuOpen(false)} />}
-    <aside className={`sidebar ${mobileMenuOpen ? "open" : ""}`} aria-label="Navigasi utama"><div className="brand"><div className="brand-mark"><Sparkles size={19} /></div><div><strong>E-SYAHADAH</strong><span>{institution.name}</span></div><button className="sidebar-close" aria-label="Tutup menu" onClick={() => setMobileMenuOpen(false)}><X size={18} /></button></div><div className="sidebar-section"><p className="eyebrow">WORKSPACE</p>{navItems.map(({ label, icon: Icon }) => <button key={label} className={`nav-item ${activeNav === label ? "active" : ""}`} onClick={() => navigate(label)}><Icon size={18} /><span>{label}</span>{label === "Ijazah" && pendingCount > 0 && <span className="nav-count">{pendingCount}</span>}</button>)}</div><div className="sidebar-section sidebar-bottom"><p className="eyebrow">KONFIGURASI</p><button className={`nav-item ${activeNav === "Mata Pelajaran" ? "active" : ""}`} onClick={() => navigate("Mata Pelajaran")}><BookOpen size={18} /><span>Mata Pelajaran</span></button><button className={`nav-item ${activeNav === "Desain Ijazah" ? "active" : ""}`} onClick={() => navigate("Desain Ijazah")}><Move size={18} /><span>Desain Ijazah</span></button><button className={`nav-item ${activeNav === "Pengaturan" ? "active" : ""}`} onClick={() => navigate("Pengaturan")}><Settings size={18} /><span>Pengaturan</span></button><button className="nav-item" onClick={exportStudents}><FileText size={18} /><span>Export CSV</span></button><button className="nav-item" onClick={handleAdminLogout}><X size={18} /><span>Keluar Admin</span></button><div className="help-card"><GraduationCap size={18} /><strong>Butuh bantuan?</strong><span>Lengkapi data, nilai, lalu terbitkan ijazah.</span><button onClick={() => navigate("Ijazah")}>Lihat alur →</button></div></div><div className="profile"><div className="avatar small">AR</div><div><strong>{institution.principal}</strong><span>Administrator</span></div><MoreHorizontal size={18} className="muted-icon" /></div></aside>
-    <section className="main-content"><header className="topbar"><button className="mobile-menu" aria-label="Buka menu" onClick={() => setMobileMenuOpen(true)}><Menu size={20} /></button><div className="breadcrumb"><span>Workspace</span><span>/</span><strong>{activeNav}</strong></div><div className="topbar-actions"><div className="year-select"><span className="status-dot" />Tahun Ajaran {academicYear}<ChevronDown size={15} /></div><button className="icon-button theme-toggle" aria-label={darkMode ? "Gunakan mode terang" : "Gunakan mode gelap"} title={darkMode ? "Mode terang" : "Mode gelap"} onClick={toggleTheme}>{darkMode ? <Sun size={17} /> : <Moon size={17} />}</button><button className="icon-button" aria-label="Notifikasi"><Bell size={18} />{pendingCount > 0 && <i />}</button><div className="avatar">AR</div></div></header><div className="page-body"><PageHeading active={activeNav} syncState={syncState} onAdd={openAddStudent} onIssue={() => navigate("Ijazah")} />
-      {activeNav === "Dashboard" && <Dashboard students={students} current={currentStudent} subjects={subjects} scores={scores} average={average} passed={passed} issuedCount={issuedCount} passedCount={passedCount} pendingCount={pendingCount} progress={progress} search={search} setSearch={setSearch} choose={chooseStudent} navigate={navigate} />}
-      {activeNav === "Data Santri" && <StudentsView students={filteredStudents} search={search} setSearch={setSearch} showFilters={showFilters} setShowFilters={setShowFilters} levelFilter={levelFilter} setLevelFilter={setLevelFilter} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onAdd={openAddStudent} onEdit={openEditStudent} onDelete={removeStudent} />}
-      {activeNav === "E-Raport" && (students.length ? <GradesView students={students} current={currentStudent} subjects={subjects} scores={scores} setScores={setScores} average={average} passed={passed} choose={chooseStudent} saveGrades={saveGrades} onPreview={() => setShowPreview(true)} syncState={syncState} /> : <section className="panel full-panel"><EmptyState title="Belum ada santri" text="Tambahkan santri di menu Data Santri sebelum mengisi nilai." /></section>)}
-      {activeNav === "Rekap Kelas" && <ClassRecap students={students} subjects={subjects} onExport={(rows) => { const csv = buildCsv(rows); const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); const anchor = document.createElement("a"); anchor.href = url; anchor.download = `rekap-nilai-${academicYear}.csv`; anchor.click(); URL.revokeObjectURL(url); logAudit("recap-export", "Mengekspor rekap nilai kelas"); }} />}
-      {activeNav === "Ijazah" && <CertificatesView students={students} onPreview={(student) => { chooseStudent(student); setShowPreview(true); }} onValidate={validateCertificate} onIssue={issueCertificate} />}
-      {activeNav === "Mata Pelajaran" && <SubjectsView subjects={subjects} setSubjects={setSubjects} onSave={persistSubjects} />}
-      {activeNav === "Desain Ijazah" && <TemplateDesigner template={template} setTemplate={setTemplate} student={currentStudent} scores={scores} subjects={subjects} institution={institution} onSave={persistTemplate} notify={notify} />}
-      {activeNav === "Pengaturan" && <SettingsView value={settingsForm} setValue={setSettingsForm} onSave={persistSettings} />}
-    </div></section>
-    {studentForm && <StudentModal value={studentForm} setValue={setStudentForm} isNew={isNewStudent} onClose={() => setStudentForm(null)} onSubmit={submitStudent} />}
-    {showPreview && <CertificateModal student={currentStudent} scores={scores} subjects={subjects} institution={institution} template={template} average={average} passed={passed} onClose={() => setShowPreview(false)} />}
-    <AuditPanel entries={auditEntries} />
-    {toast && <div className="toast"><Check size={16} />{toast}</div>}
-  </main>;
+  return (
+    <main className={`app-shell ${darkMode ? "dark" : "light"}`}>
+      {mobileMenuOpen && <button className="sidebar-backdrop" aria-label="Tutup menu" onClick={() => setMobileMenuOpen(false)} />}
+      <aside className={`sidebar ${mobileMenuOpen ? "open" : ""}`} aria-label="Navigasi utama">
+        <div className="brand">
+          <div className="brand-mark">
+            <Sparkles size={19} />
+          </div>
+          <div>
+            <strong>E-SYAHADAH</strong>
+            <span>{institution.name}</span>
+          </div>
+          <button className="sidebar-close" aria-label="Tutup menu" onClick={() => setMobileMenuOpen(false)}>
+            <X size={18} />
+          </button>
+        </div>
+        <div className="sidebar-section">
+          <p className="eyebrow">WORKSPACE</p>
+          {navItems.map(({ label, icon: Icon }) => (
+            <button key={label} className={`nav-item ${activeNav === label ? "active" : ""}`} onClick={() => navigate(label)}>
+              <Icon size={18} />
+              <span>{label}</span>
+              {label === "Ijazah" && pendingCount > 0 && <span className="nav-count">{pendingCount}</span>}
+            </button>
+          ))}
+        </div>
+        <div className="sidebar-section sidebar-bottom">
+          <p className="eyebrow">KONFIGURASI</p>
+          <button className={`nav-item ${activeNav === "Mata Pelajaran" ? "active" : ""}`} onClick={() => navigate("Mata Pelajaran")}>
+            <BookOpen size={18} />
+            <span>Mata Pelajaran</span>
+          </button>
+          <button className={`nav-item ${activeNav === "Desain Ijazah" ? "active" : ""}`} onClick={() => navigate("Desain Ijazah")}>
+            <Move size={18} />
+            <span>Desain Ijazah</span>
+          </button>
+          <button className={`nav-item ${activeNav === "Pengaturan" ? "active" : ""}`} onClick={() => navigate("Pengaturan")}>
+            <Settings size={18} />
+            <span>Pengaturan</span>
+          </button>
+          <button className="nav-item" onClick={exportStudents}>
+            <FileText size={18} />
+            <span>Export CSV</span>
+          </button>
+          <button className="nav-item" onClick={handleAdminLogout}>
+            <X size={18} />
+            <span>Keluar Admin</span>
+          </button>
+          <div className="help-card">
+            <GraduationCap size={18} />
+            <strong>Butuh bantuan?</strong>
+            <span>Lengkapi data, nilai, lalu terbitkan ijazah.</span>
+            <button onClick={() => navigate("Ijazah")}>Lihat alur →</button>
+          </div>
+        </div>
+        <div className="profile">
+          <div className="avatar small">AR</div>
+          <div>
+            <strong>{institution.principal}</strong>
+            <span>Administrator</span>
+          </div>
+          <MoreHorizontal size={18} className="muted-icon" />
+        </div>
+      </aside>
+      <section className="main-content">
+        <header className="topbar">
+          <button className="mobile-menu" aria-label="Buka menu" onClick={() => setMobileMenuOpen(true)}>
+            <Menu size={20} />
+          </button>
+          <div className="breadcrumb">
+            <span>Workspace</span>
+            <span>/</span>
+            <strong>{activeNav}</strong>
+          </div>
+          <div className="topbar-actions">
+            <div className="year-select">
+              <span className="status-dot" />
+              Tahun Ajaran {academicYear}
+            </div>
+            <button className="icon-button theme-toggle" aria-label={darkMode ? "Gunakan mode terang" : "Gunakan mode gelap"} title={darkMode ? "Mode terang" : "Mode gelap"} onClick={toggleTheme}>
+              {darkMode ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
+            <button
+              className="icon-button"
+              aria-label={`${pendingCount} ijazah menunggu validasi`}
+              title="Buka daftar ijazah"
+              onClick={() => {
+                navigate("Ijazah");
+                notify(pendingCount ? `${pendingCount} ijazah menunggu diproses.` : "Tidak ada ijazah yang menunggu.");
+              }}
+            >
+              <Bell size={18} />
+              {pendingCount > 0 && <i />}
+            </button>
+            <button className="avatar avatar-button" aria-label="Buka pengaturan admin" title="Pengaturan" onClick={() => navigate("Pengaturan")}>
+              AR
+            </button>
+          </div>
+        </header>
+        <div className="page-body">
+          <PageHeading active={activeNav} syncState={syncState} adminName={institution.principal} onAdd={openAddStudent} onIssue={() => navigate("Ijazah")} />
+          {activeNav === "Dashboard" && <Dashboard students={students} current={currentStudent} principal={institution.principal} subjects={subjects} scores={scores} average={average} passed={passed} issuedCount={issuedCount} passedCount={passedCount} pendingCount={pendingCount} progress={progress} search={search} setSearch={setSearch} choose={chooseStudent} navigate={navigate} />}
+          {activeNav === "Data Santri" && <StudentsView students={filteredStudents} search={search} setSearch={setSearch} showFilters={showFilters} setShowFilters={setShowFilters} levelFilter={levelFilter} setLevelFilter={setLevelFilter} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onAdd={openAddStudent} onEdit={openEditStudent} onDelete={removeStudent} />}
+          {activeNav === "E-Raport" &&
+            (students.length ? (
+              <GradesView students={students} current={currentStudent} subjects={subjects} scores={scores} setScores={setScores} average={average} passed={passed} choose={chooseStudent} saveGrades={saveGrades} onPreview={() => setShowPreview(true)} syncState={syncState} />
+            ) : (
+              <section className="panel full-panel">
+                <EmptyState title="Belum ada santri" text="Tambahkan santri di menu Data Santri sebelum mengisi nilai." />
+              </section>
+            ))}
+          {activeNav === "Rekap Kelas" && (
+            <ClassRecap
+              students={students}
+              subjects={subjects}
+              onExport={(rows) => {
+                const csv = buildCsv(rows);
+                const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+                const anchor = document.createElement("a");
+                anchor.href = url;
+                anchor.download = `rekap-nilai-${academicYear}.csv`;
+                anchor.click();
+                URL.revokeObjectURL(url);
+                logAudit("recap-export", "Mengekspor rekap nilai kelas");
+              }}
+            />
+          )}
+          {activeNav === "Ijazah" && (
+            <CertificatesView
+              students={students}
+              onPreview={(student) => {
+                chooseStudent(student);
+                setShowPreview(true);
+              }}
+              onValidate={validateCertificate}
+              onIssue={issueCertificate}
+            />
+          )}
+          {activeNav === "Mata Pelajaran" && <SubjectsView subjects={subjects} setSubjects={setSubjects} onSave={persistSubjects} />}
+          {activeNav === "Desain Ijazah" && <TemplateDesigner template={template} setTemplate={setTemplate} student={currentStudent} scores={scores} subjects={subjects} institution={institution} onSave={persistTemplate} notify={notify} />}
+          {activeNav === "Pengaturan" && <SettingsView value={settingsForm} setValue={setSettingsForm} onSave={persistSettings} />}
+        </div>
+      </section>
+      {studentForm && <StudentModal value={studentForm} setValue={setStudentForm} isNew={isNewStudent} onClose={() => setStudentForm(null)} onSubmit={submitStudent} />}
+      {showPreview && <CertificateModal student={currentStudent} scores={scores} subjects={subjects} institution={institution} template={template} average={average} passed={passed} onClose={() => setShowPreview(false)} />}
+      {toast && (
+        <div className="toast">
+          <Check size={16} />
+          {toast}
+        </div>
+      )}
+    </main>
+  );
 }
 
-function PageHeading({ active, syncState, onAdd, onIssue }: { active: string; syncState: string; onAdd: () => void; onIssue: () => void }) {
-  const copy: Record<string, [string, string]> = { Dashboard: ["Selamat datang, Ahmad", "Pantau penerbitan ijazah pesantren dalam satu ruang."], "Data Santri": ["Data santri", "Kelola identitas dan data akademik seluruh santri."], "E-Raport": ["E-Raport santri", "Pilih santri, isi nilai, periksa hasil, lalu simpan dan cetak."], "Rekap Kelas": ["Rekap nilai kelas", "Bandingkan nilai semua santri dan ekspor untuk administrasi."], Ijazah: ["Penerbitan ijazah", "Validasi, pratinjau, dan cetak ijazah digital."], "Mata Pelajaran": ["Mata pelajaran", "Atur nama dan status pelajaran pada transkrip."], "Desain Ijazah": ["Desain ijazah", "Edit teks, geser elemen, unggah logo, dan atur watermark."], Pengaturan: ["Pengaturan pesantren", "Sesuaikan identitas yang tampil pada dokumen ijazah."] };
-  return <div className="page-heading"><div><p className="eyebrow accent">{today}</p><h1>{copy[active]?.[0]} <span>✦</span></h1><div className="heading-meta"><p className="subheading">{copy[active]?.[1]}</p><span className={`sync-badge ${syncState}`}><i />{syncState === "demo" ? "Mode demo" : syncState === "connecting" ? "Menghubungkan Firebase" : syncState === "saving" ? "Menyimpan" : syncState === "error" ? "Firebase bermasalah" : "Firebase tersinkron"}</span></div></div>{active === "Data Santri" ? <button className="primary-button" onClick={onAdd}><UserPlus size={17} />Tambah Santri</button> : active === "Dashboard" ? <button className="primary-button" onClick={onIssue}><FileText size={17} />Buat Ijazah Baru</button> : null}</div>;
+function PageHeading({ active, syncState, adminName, onAdd, onIssue }: { active: string; syncState: string; adminName: string; onAdd: () => void; onIssue: () => void }) {
+  const copy: Record<string, [string, string]> = {
+    Dashboard: [`Selamat datang, ${adminName || "Admin"}`, "Pantau penerbitan ijazah pesantren dalam satu ruang."],
+    "Data Santri": ["Data santri", "Kelola identitas dan data akademik seluruh santri."],
+    "E-Raport": ["E-Raport santri", "Pilih santri, isi nilai, periksa hasil, lalu simpan dan cetak."],
+    "Rekap Kelas": ["Rekap nilai kelas", "Bandingkan nilai semua santri dan ekspor untuk administrasi."],
+    Ijazah: ["Penerbitan ijazah", "Validasi, pratinjau, dan cetak ijazah digital."],
+    "Mata Pelajaran": ["Mata pelajaran", "Atur nama dan status pelajaran pada transkrip."],
+    "Desain Ijazah": ["Desain ijazah", "Edit teks, geser elemen, unggah logo, dan atur watermark."],
+    Pengaturan: ["Pengaturan pesantren", "Sesuaikan identitas yang tampil pada dokumen ijazah."],
+  };
+  return (
+    <div className="page-heading">
+      <div>
+        <p className="eyebrow accent">{today}</p>
+        <h1>
+          {copy[active]?.[0]} <span>✦</span>
+        </h1>
+        <div className="heading-meta">
+          <p className="subheading">{copy[active]?.[1]}</p>
+          <span className={`sync-badge ${syncState}`}>
+            <i />
+            {syncState === "demo" ? "Mode demo" : syncState === "connecting" ? "Menghubungkan Firebase" : syncState === "saving" ? "Menyimpan" : syncState === "error" ? "Firebase bermasalah" : "Firebase tersinkron"}
+          </span>
+        </div>
+      </div>
+      {active === "Data Santri" ? (
+        <button className="primary-button" onClick={onAdd}>
+          <UserPlus size={17} />
+          Tambah Santri
+        </button>
+      ) : active === "Dashboard" ? (
+        <button className="primary-button" onClick={onIssue}>
+          <FileText size={17} />
+          Buat Ijazah Baru
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
-function Dashboard(props: { students: Student[]; current: Student; subjects: Subject[]; scores: number[]; average: number; passed: boolean; issuedCount: number; passedCount: number; pendingCount: number; progress: number; search: string; setSearch: (v: string) => void; choose: (s: Student) => void; navigate: (v: string) => void }) {
-  const scoreCompletion = props.students.length ? Math.round(props.students.filter((student) => student.scores.every((score) => score > 0)).length / props.students.length * 100) : 0;
-  const monthName = new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric", timeZone: "Asia/Jakarta" }).format(now);
+function Dashboard(props: { students: Student[]; current: Student; principal: string; subjects: Subject[]; scores: number[]; average: number; passed: boolean; issuedCount: number; passedCount: number; pendingCount: number; progress: number; search: string; setSearch: (v: string) => void; choose: (s: Student) => void; navigate: (v: string) => void }) {
+  const profileCompletion = props.students.length
+    ? Math.round(
+        (props.students.filter(
+          (student) =>
+            student.name.trim() &&
+            student.arabicName.trim() &&
+            student.nisn?.trim() &&
+            student.birthPlace?.trim() &&
+            student.birthDate?.trim(),
+        ).length /
+          props.students.length) *
+          100,
+      )
+    : 0;
+  const scoreCompletion = props.students.length ? Math.round((props.students.filter((student) => student.scores.every((score) => score > 0)).length / props.students.length) * 100) : 0;
+  const monthName = new Intl.DateTimeFormat("id-ID", {
+    month: "long",
+    year: "numeric",
+    timeZone: "Asia/Jakarta",
+  }).format(now);
   const monthDays = new Date(currentYear, currentMonth, 0).getDate();
   const firstDay = new Date(currentYear, currentMonth - 1, 1).getDay();
   const calendarCells = [...Array(firstDay).fill(null), ...Array.from({ length: monthDays }, (_, index) => index + 1)];
   const recent = props.students.filter((student) => student.name.toLowerCase().includes(props.search.toLowerCase())).slice(0, 4);
-  return <div className="modern-dashboard"><section className="dashboard-mini-stats"><DashboardStat label="Kelengkapan Data" value={100} tone="purple" /><DashboardStat label="Nilai Terisi" value={scoreCompletion} tone="blue" /><DashboardStat label="Ijazah Terbit" value={props.students.length ? Math.round(props.issuedCount / props.students.length * 100) : 0} tone="cyan" /></section><div className="dashboard-layout"><div className="dashboard-primary"><section className="panel progress-card"><div className="modern-card-header"><div><span>PROGRES AKADEMIK</span><h2>Perkembangan penerbitan</h2></div><button aria-label="Menu progres"><MoreHorizontal size={18} /></button></div><div className="chart-summary"><strong>{props.progress}%</strong><span>ijazah selesai</span></div><svg className="progress-chart" viewBox="0 0 620 190" role="img" aria-label={`Progres penerbitan ${props.progress} persen`}><defs><linearGradient id="chartFill" x1="0" x2="1"><stop offset="0" stopColor="#6552cf" /><stop offset=".52" stopColor="#587cf4" /><stop offset="1" stopColor="#62d4dc" /></linearGradient><linearGradient id="chartArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#6d80ed" stopOpacity=".42" /><stop offset="1" stopColor="#6d80ed" stopOpacity="0" /></linearGradient></defs><path className="chart-grid" d="M20 35H600M20 90H600M20 145H600" /><path className="chart-area" d="M20 145C75 105 115 58 165 74S245 132 300 83S383 40 430 70S520 118 600 49V175H20Z" /><path className="chart-line" d="M20 145C75 105 115 58 165 74S245 132 300 83S383 40 430 70S520 118 600 49" /><circle cx="600" cy="49" r="6" /><g className="chart-months"><text x="20" y="187">Jul</text><text x="130" y="187">Agu</text><text x="240" y="187">Sep</text><text x="350" y="187">Okt</text><text x="460" y="187">Nov</text><text x="580" y="187">Des</text></g></svg></section><section className="panel activity-card"><div className="modern-card-header"><div><span>DATA TERBARU</span><h2>Aktivitas santri</h2></div><button className="dashboard-link" onClick={() => props.navigate("Data Santri")}>Lihat semua</button></div><div className="activity-head"><span>Santri</span><span>Jenjang</span><span>Nilai</span><span>Status</span></div>{recent.map((student) => <button className="activity-row" key={student.id} onClick={() => props.choose(student)}><StudentIdentity student={student} /><span>{student.level}</span><strong>{student.score}</strong><StatusBadge status={student.status} /></button>)}</section></div><section className="panel calendar-card"><div className="modern-card-header"><div><span>KALENDER</span><h2>{monthName}</h2></div><CalendarDays size={18} /></div><div className="calendar-week"><span>Min</span><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span></div><div className="calendar-grid">{calendarCells.map((day, index) => <span key={index} className={day === now.getDate() ? "today" : ""}>{day}</span>)}</div><div className="today-label">Hari ini, {now.getDate()} {monthName}</div><div className="schedule-list"><article className="schedule-item purple"><time>08:00</time><div><strong>Input nilai santri</strong><span>E-Raport · Ulya</span></div></article><article className="schedule-item yellow"><time>10:30</time><div><strong>Validasi kelulusan</strong><span>{props.pendingCount} santri menunggu</span></div></article><article className="schedule-item blue"><time>13:00</time><div><strong>Cetak ijazah</strong><span>{props.issuedCount} dokumen siap</span></div></article></div></section><aside className="dashboard-side"><section className="panel profile-card-modern"><span className="profile-label">PROFIL SAYA</span><div className="profile-avatar-large">AR</div><strong>{props.current.name}</strong><span>Administrator Akademik</span><button onClick={() => props.navigate("Pengaturan")}>Lihat pengaturan</button></section><section className="panel quick-panel"><div className="modern-card-header"><div><span>AKSI CEPAT</span><h2>Kelola akademik</h2></div><MessageCircle size={17} /></div><button onClick={() => props.navigate("E-Raport")}><ClipboardList size={17} /><span><strong>Input nilai</strong><small>{props.current.name}</small></span></button><button onClick={() => props.navigate("Ijazah")}><FileCheck2 size={17} /><span><strong>Terbitkan ijazah</strong><small>{props.pendingCount} menunggu validasi</small></span></button><button onClick={() => props.navigate("Desain Ijazah")}><Pencil size={17} /><span><strong>Desain dokumen</strong><small>Atur template cetak</small></span></button></section><section className="panel dashboard-status"><div className="status-orb"><Sparkles size={18} /></div><div><strong>Firebase aktif</strong><span>Data tersinkron otomatis</span></div></section></aside></div></div>;
+  return (
+    <div className="modern-dashboard">
+      <section className="dashboard-mini-stats">
+        <DashboardStat label="Kelengkapan Data" value={profileCompletion} tone="purple" />
+        <DashboardStat label="Nilai Terisi" value={scoreCompletion} tone="blue" />
+        <DashboardStat label="Ijazah Terbit" value={props.students.length ? Math.round((props.issuedCount / props.students.length) * 100) : 0} tone="cyan" />
+      </section>
+      <div className="dashboard-layout">
+        <div className="dashboard-primary">
+          <section className="panel progress-card">
+            <div className="modern-card-header">
+              <div>
+                <span>PROGRES AKADEMIK</span>
+                <h2>Perkembangan penerbitan</h2>
+              </div>
+              <MoreHorizontal size={18} aria-hidden="true" />
+            </div>
+            <div className="chart-summary">
+              <strong>{props.progress}%</strong>
+              <span>ijazah selesai</span>
+            </div>
+            <svg className="progress-chart" viewBox="0 0 620 190" role="img" aria-label={`Progres penerbitan ${props.progress} persen`}>
+              <defs>
+                <linearGradient id="chartFill" x1="0" x2="1">
+                  <stop offset="0" stopColor="#6552cf" />
+                  <stop offset=".52" stopColor="#587cf4" />
+                  <stop offset="1" stopColor="#62d4dc" />
+                </linearGradient>
+                <linearGradient id="chartArea" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor="#6d80ed" stopOpacity=".42" />
+                  <stop offset="1" stopColor="#6d80ed" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path className="chart-grid" d="M20 35H600M20 90H600M20 145H600" />
+              <path className="chart-area" d="M20 145C75 105 115 58 165 74S245 132 300 83S383 40 430 70S520 118 600 49V175H20Z" />
+              <path className="chart-line" d="M20 145C75 105 115 58 165 74S245 132 300 83S383 40 430 70S520 118 600 49" />
+              <circle cx="600" cy="49" r="6" />
+              <g className="chart-months">
+                <text x="20" y="187">
+                  Jul
+                </text>
+                <text x="130" y="187">
+                  Agu
+                </text>
+                <text x="240" y="187">
+                  Sep
+                </text>
+                <text x="350" y="187">
+                  Okt
+                </text>
+                <text x="460" y="187">
+                  Nov
+                </text>
+                <text x="580" y="187">
+                  Des
+                </text>
+              </g>
+            </svg>
+          </section>
+          <section className="panel activity-card">
+            <div className="modern-card-header">
+              <div>
+                <span>DATA TERBARU</span>
+                <h2>Aktivitas santri</h2>
+              </div>
+              <button className="dashboard-link" onClick={() => props.navigate("Data Santri")}>
+                Lihat semua
+              </button>
+            </div>
+            <div className="activity-head">
+              <span>Santri</span>
+              <span>Jenjang</span>
+              <span>Nilai</span>
+              <span>Status</span>
+            </div>
+            {recent.map((student) => (
+              <button
+                className="activity-row"
+                key={student.id}
+                onClick={() => {
+                  props.choose(student);
+                  props.navigate("E-Raport");
+                }}
+              >
+                <StudentIdentity student={student} />
+                <span>{student.level}</span>
+                <strong>{student.score}</strong>
+                <StatusBadge status={student.status} />
+              </button>
+            ))}
+          </section>
+        </div>
+        <section className="panel calendar-card">
+          <div className="modern-card-header">
+            <div>
+              <span>KALENDER</span>
+              <h2>{monthName}</h2>
+            </div>
+            <CalendarDays size={18} />
+          </div>
+          <div className="calendar-week">
+            <span>Min</span>
+            <span>Sen</span>
+            <span>Sel</span>
+            <span>Rab</span>
+            <span>Kam</span>
+            <span>Jum</span>
+            <span>Sab</span>
+          </div>
+          <div className="calendar-grid">
+            {calendarCells.map((day, index) => (
+              <span key={index} className={day === now.getDate() ? "today" : ""}>
+                {day}
+              </span>
+            ))}
+          </div>
+          <div className="today-label">
+            Hari ini, {now.getDate()} {monthName}
+          </div>
+          <div className="schedule-list">
+            <article className="schedule-item purple">
+              <time>08:00</time>
+              <div>
+                <strong>Input nilai santri</strong>
+                <span>E-Raport · Ulya</span>
+              </div>
+            </article>
+            <article className="schedule-item yellow">
+              <time>10:30</time>
+              <div>
+                <strong>Validasi kelulusan</strong>
+                <span>{props.pendingCount} santri menunggu</span>
+              </div>
+            </article>
+            <article className="schedule-item blue">
+              <time>13:00</time>
+              <div>
+                <strong>Cetak ijazah</strong>
+                <span>{props.issuedCount} dokumen siap</span>
+              </div>
+            </article>
+          </div>
+        </section>
+        <aside className="dashboard-side">
+          <section className="panel profile-card-modern">
+            <span className="profile-label">PROFIL SAYA</span>
+            <div className="profile-avatar-large">{getInitials(props.principal || "Admin")}</div>
+            <strong>{props.principal || "Administrator"}</strong>
+            <span>Administrator Akademik</span>
+            <button onClick={() => props.navigate("Pengaturan")}>Lihat pengaturan</button>
+          </section>
+          <section className="panel quick-panel">
+            <div className="modern-card-header">
+              <div>
+                <span>AKSI CEPAT</span>
+                <h2>Kelola akademik</h2>
+              </div>
+              <MessageCircle size={17} />
+            </div>
+            <button onClick={() => props.navigate("E-Raport")}>
+              <ClipboardList size={17} />
+              <span>
+                <strong>Input nilai</strong>
+                <small>{props.current.name}</small>
+              </span>
+            </button>
+            <button onClick={() => props.navigate("Ijazah")}>
+              <FileCheck2 size={17} />
+              <span>
+                <strong>Terbitkan ijazah</strong>
+                <small>{props.pendingCount} menunggu validasi</small>
+              </span>
+            </button>
+            <button onClick={() => props.navigate("Desain Ijazah")}>
+              <Pencil size={17} />
+              <span>
+                <strong>Desain dokumen</strong>
+                <small>Atur template cetak</small>
+              </span>
+            </button>
+          </section>
+          <section className="panel dashboard-status">
+            <div className="status-orb">
+              <Sparkles size={18} />
+            </div>
+            <div>
+              <strong>Firebase aktif</strong>
+              <span>Data tersinkron otomatis</span>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+  );
 }
 
-function DashboardStat({ label, value, tone }: { label: string; value: number; tone: string }) { return <article className={`dashboard-stat ${tone}`}><div><span>{label}</span><strong>{value}%</strong></div><div className="stat-track"><i style={{ width: `${value}%` }} /></div></article>; }
+function DashboardStat({ label, value, tone }: { label: string; value: number; tone: string }) {
+  return (
+    <article className={`dashboard-stat ${tone}`}>
+      <div>
+        <span>{label}</span>
+        <strong>{value}%</strong>
+      </div>
+      <div className="stat-track">
+        <i style={{ width: `${value}%` }} />
+      </div>
+    </article>
+  );
+}
 
 function StudentsView(props: { students: Student[]; search: string; setSearch: (v: string) => void; showFilters: boolean; setShowFilters: (v: boolean) => void; levelFilter: string; setLevelFilter: (v: string) => void; statusFilter: string; setStatusFilter: (v: string) => void; onAdd: () => void; onEdit: (s: Student) => void; onDelete: (s: Student) => void }) {
-  return <section className="panel full-panel"><PanelHeader title={`${props.students.length} santri ditemukan`} subtitle="Klik edit untuk memperbarui identitas santri." action={<button className="primary-button compact" onClick={props.onAdd}><Plus size={15} />Tambah</button>} /><div className="toolbar"><div className="search-box"><Search size={16} /><input aria-label="Cari santri" placeholder="Cari nama atau nomor syahadah..." value={props.search} onChange={(e) => props.setSearch(e.target.value)} /></div><button className={`filter-button ${props.showFilters ? "active" : ""}`} onClick={() => props.setShowFilters(!props.showFilters)}><SlidersHorizontal size={15} />Filter</button></div>{props.showFilters && <div className="filter-row"><label>Jenjang<select value={props.levelFilter} onChange={(e) => props.setLevelFilter(e.target.value)}><option>Semua</option><option>Ulya</option><option>Wustha</option><option>Ula</option></select></label><label>Status<select value={props.statusFilter} onChange={(e) => props.setStatusFilter(e.target.value)}><option>Semua</option><option>Lulus</option><option>Proses</option></select></label></div>}<div className="manage-table"><div className="manage-head"><span>Santri</span><span>NISN</span><span>Jenjang</span><span>Status</span><span>Nilai</span><span>Aksi</span></div>{props.students.map((student) => <div className="manage-row" key={student.id}><StudentIdentity student={student} /><span>{student.nisn || "—"}</span><span>{student.level}</span><StatusBadge status={student.status} /><strong>{student.score}</strong><span className="row-actions"><button aria-label={`Edit ${student.name}`} onClick={() => props.onEdit(student)}><Pencil size={15} /></button><button className="danger" aria-label={`Hapus ${student.name}`} onClick={() => props.onDelete(student)}><Trash2 size={15} /></button></span></div>)}</div>{!props.students.length && <EmptyState title="Santri tidak ditemukan" text="Ubah kata pencarian atau tambahkan santri baru." />}</section>;
+  return (
+    <section className="panel full-panel">
+      <PanelHeader
+        title={`${props.students.length} santri ditemukan`}
+        subtitle="Klik edit untuk memperbarui identitas santri."
+        action={
+          <button className="primary-button compact" onClick={props.onAdd}>
+            <Plus size={15} />
+            Tambah
+          </button>
+        }
+      />
+      <div className="toolbar">
+        <div className="search-box">
+          <Search size={16} />
+          <input aria-label="Cari santri" placeholder="Cari nama atau nomor syahadah..." value={props.search} onChange={(e) => props.setSearch(e.target.value)} />
+        </div>
+        <button className={`filter-button ${props.showFilters ? "active" : ""}`} onClick={() => props.setShowFilters(!props.showFilters)}>
+          <SlidersHorizontal size={15} />
+          Filter
+        </button>
+      </div>
+      {props.showFilters && (
+        <div className="filter-row">
+          <label>
+            Jenjang
+            <select value={props.levelFilter} onChange={(e) => props.setLevelFilter(e.target.value)}>
+              <option>Semua</option>
+              <option>Ulya</option>
+              <option>Wustha</option>
+              <option>Ula</option>
+            </select>
+          </label>
+          <label>
+            Status
+            <select value={props.statusFilter} onChange={(e) => props.setStatusFilter(e.target.value)}>
+              <option>Semua</option>
+              <option>Lulus</option>
+              <option>Proses</option>
+            </select>
+          </label>
+        </div>
+      )}
+      <div className="manage-table">
+        <div className="manage-head">
+          <span>Santri</span>
+          <span>NISN</span>
+          <span>Jenjang</span>
+          <span>Status</span>
+          <span>Nilai</span>
+          <span>Aksi</span>
+        </div>
+        {props.students.map((student) => (
+          <div className="manage-row" key={student.id}>
+            <StudentIdentity student={student} />
+            <span>{student.nisn || "—"}</span>
+            <span>{student.level}</span>
+            <StatusBadge status={student.status} />
+            <strong>{student.score}</strong>
+            <span className="row-actions">
+              <button aria-label={`Edit ${student.name}`} onClick={() => props.onEdit(student)}>
+                <Pencil size={15} />
+              </button>
+              <button className="danger" aria-label={`Hapus ${student.name}`} onClick={() => props.onDelete(student)}>
+                <Trash2 size={15} />
+              </button>
+            </span>
+          </div>
+        ))}
+      </div>
+      {!props.students.length && <EmptyState title="Santri tidak ditemukan" text="Ubah kata pencarian atau tambahkan santri baru." />}
+    </section>
+  );
 }
 
 function GradesView(props: { students: Student[]; current: Student; subjects: Subject[]; scores: number[]; setScores: (v: number[]) => void; average: number; passed: boolean; choose: (s: Student) => void; saveGrades: () => void; onPreview: () => void; syncState: string }) {
@@ -210,96 +1042,675 @@ function GradesView(props: { students: Student[]; current: Student; subjects: Su
   const activeSubjects = props.subjects.filter((subject) => subject.active);
   const completed = activeSubjects.filter((subject) => (props.scores[subject.order] ?? 0) > 0).length;
   const completion = activeSubjects.length ? Math.round((completed / activeSubjects.length) * 100) : 0;
-  return <div className="report-page"><section className="panel report-context"><div><span className="report-kicker">KONTEKS RAPOR</span><strong>Tahun Ajaran {academicYear}</strong></div><label>Semester<select value={semester} onChange={(event) => setSemester(event.target.value)}><option>Semester Ganjil</option><option>Semester Genap</option></select></label><label>Jenjang<select value={level} onChange={(event) => setLevel(event.target.value)}><option>Semua</option><option>Ula</option><option>Wustha</option><option>Ulya</option></select></label><span className={`report-save-state ${props.syncState}`}>{props.syncState === "saving" ? "Sedang menyimpan…" : props.syncState === "error" ? "Gagal tersimpan" : "Tersimpan di Firebase"}</span></section><section className="report-steps"><div className="done"><b>1</b><span><strong>Pilih santri</strong><small>{props.current.name}</small></span></div><i /><div className={completion === 100 ? "done" : "active"}><b>2</b><span><strong>Isi nilai</strong><small>{completed}/{activeSubjects.length} mapel</small></span></div><i /><div><b>3</b><span><strong>Validasi</strong><small>Periksa hasil</small></span></div><i /><div><b>4</b><span><strong>Cetak</strong><small>Rapor / ijazah</small></span></div></section><div className="report-workspace"><section className="panel student-picker report-students"><PanelHeader title="Daftar santri" subtitle={`${visibleStudents.length} santri pada filter ini`} />{visibleStudents.map((student) => <button key={student.id} className={`picker-row ${student.id === props.current.id ? "selected" : ""}`} onClick={() => props.choose(student)}><StudentIdentity student={student} /><span className="picker-result"><strong>{student.score}</strong><small>{student.status}</small></span></button>)}{!visibleStudents.length && <EmptyState title="Tidak ada santri" text="Ubah filter jenjang di bagian atas." />}</section><ReportGradePanel current={props.current} subjects={props.subjects} scores={props.scores} setScores={props.setScores} average={props.average} passed={props.passed} completion={completion} semester={semester} onSave={props.saveGrades} onPreview={props.onPreview} /></div></div>;
+  return (
+    <div className="report-page">
+      <section className="panel report-context">
+        <div>
+          <span className="report-kicker">KONTEKS RAPOR</span>
+          <strong>Tahun Ajaran {academicYear}</strong>
+        </div>
+        <label>
+          Semester
+          <select value={semester} onChange={(event) => setSemester(event.target.value)}>
+            <option>Semester Ganjil</option>
+            <option>Semester Genap</option>
+          </select>
+        </label>
+        <label>
+          Jenjang
+          <select value={level} onChange={(event) => setLevel(event.target.value)}>
+            <option>Semua</option>
+            <option>Ula</option>
+            <option>Wustha</option>
+            <option>Ulya</option>
+          </select>
+        </label>
+        <span className={`report-save-state ${props.syncState}`}>{props.syncState === "saving" ? "Sedang menyimpan…" : props.syncState === "error" ? "Gagal tersimpan" : "Tersimpan di Firebase"}</span>
+      </section>
+      <section className="report-steps">
+        <div className="done">
+          <b>1</b>
+          <span>
+            <strong>Pilih santri</strong>
+            <small>{props.current.name}</small>
+          </span>
+        </div>
+        <i />
+        <div className={completion === 100 ? "done" : "active"}>
+          <b>2</b>
+          <span>
+            <strong>Isi nilai</strong>
+            <small>
+              {completed}/{activeSubjects.length} mapel
+            </small>
+          </span>
+        </div>
+        <i />
+        <div>
+          <b>3</b>
+          <span>
+            <strong>Validasi</strong>
+            <small>Periksa hasil</small>
+          </span>
+        </div>
+        <i />
+        <div>
+          <b>4</b>
+          <span>
+            <strong>Cetak</strong>
+            <small>Rapor / ijazah</small>
+          </span>
+        </div>
+      </section>
+      <div className="report-workspace">
+        <section className="panel student-picker report-students">
+          <PanelHeader title="Daftar santri" subtitle={`${visibleStudents.length} santri pada filter ini`} />
+          {visibleStudents.map((student) => (
+            <button key={student.id} className={`picker-row ${student.id === props.current.id ? "selected" : ""}`} onClick={() => props.choose(student)}>
+              <StudentIdentity student={student} />
+              <span className="picker-result">
+                <strong>{student.score}</strong>
+                <small>{student.status}</small>
+              </span>
+            </button>
+          ))}
+          {!visibleStudents.length && <EmptyState title="Tidak ada santri" text="Ubah filter jenjang di bagian atas." />}
+        </section>
+        <ReportGradePanel current={props.current} subjects={props.subjects} scores={props.scores} setScores={props.setScores} average={props.average} passed={props.passed} completion={completion} semester={semester} onSave={props.saveGrades} onPreview={props.onPreview} />
+      </div>
+    </div>
+  );
 }
 
-function reportPredicate(score: number) { if (score >= 90) return ["A", "Sangat Baik"]; if (score >= 80) return ["B", "Baik"]; if (score >= 70) return ["C", "Cukup"]; return ["D", "Perlu Bimbingan"]; }
+function reportPredicate(score: number) {
+  if (score >= 90) return ["A", "Sangat Baik"];
+  if (score >= 80) return ["B", "Baik"];
+  if (score >= 70) return ["C", "Cukup"];
+  return ["D", "Perlu Bimbingan"];
+}
 
 function ClassRecap({ students, subjects, onExport }: { students: Student[]; subjects: Subject[]; onExport: (rows: (string | number)[][]) => void }) {
   const [level, setLevel] = useState("Semua");
   const [query, setQuery] = useState("");
   const activeSubjects = subjects.filter((subject) => subject.active).sort((a, b) => a.order - b.order);
   const visible = students.filter((student) => (level === "Semua" || student.level === level) && student.name.toLowerCase().includes(query.toLowerCase()));
-  const rows: (string | number)[][] = [
-    ["Nomor Syahadah", "Nama", "Jenjang", ...activeSubjects.map((subject) => subject.name), "Rata-rata", "Status", "Ijazah"],
-    ...visible.map((student) => [student.id, student.name, student.level, ...activeSubjects.map((subject) => student.scores[subject.order] || ""), averageScore(student.scores), student.status, student.certificateStatus ?? "Belum"]),
-  ];
+  const rows: (string | number)[][] = [["Nomor Syahadah", "Nama", "Jenjang", ...activeSubjects.map((subject) => subject.name), "Rata-rata", "Status", "Ijazah"], ...visible.map((student) => [student.id, student.name, student.level, ...activeSubjects.map((subject) => student.scores[subject.order] || ""), averageScore(student.scores), student.status, student.certificateStatus ?? "Belum"])];
   function printRecap() {
     document.body.classList.add("print-recap");
     const cleanup = () => document.body.classList.remove("print-recap");
     window.addEventListener("afterprint", cleanup, { once: true });
     window.print();
   }
-  return <section className="panel full-panel recap-print"><PanelHeader title={`Rekap nilai · ${visible.length} santri`} subtitle={`Tahun ajaran ${academicYear} · nilai per mata pelajaran dan status kelulusan`} /><div className="recap-toolbar"><label>Jenjang<select value={level} onChange={(event) => setLevel(event.target.value)}><option>Semua</option><option>Ula</option><option>Wustha</option><option>Ulya</option></select></label><label>Cari santri<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nama santri" /></label><button className="ghost-action" onClick={() => onExport(rows)}><FileText size={15} />Unduh CSV / Excel</button><button className="primary-button compact" onClick={printRecap}><Printer size={15} />Cetak / PDF</button></div><div className="recap-scroller"><table className="recap-table"><thead><tr>{rows[0].map((cell, index) => <th key={index}>{cell}</th>)}</tr></thead><tbody>{rows.slice(1).map((row, index) => <tr key={visible[index]?.id}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell || "—"}</td>)}</tr>)}</tbody></table></div>{visible.length === 0 && <EmptyState title="Belum ada data" text="Ubah filter atau tambahkan data santri." />}</section>;
+  return (
+    <section className="panel full-panel recap-print">
+      <PanelHeader title={`Rekap nilai · ${visible.length} santri`} subtitle={`Tahun ajaran ${academicYear} · nilai per mata pelajaran dan status kelulusan`} />
+      <div className="recap-toolbar">
+        <label>
+          Jenjang
+          <select value={level} onChange={(event) => setLevel(event.target.value)}>
+            <option>Semua</option>
+            <option>Ula</option>
+            <option>Wustha</option>
+            <option>Ulya</option>
+          </select>
+        </label>
+        <label>
+          Cari santri
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nama santri" />
+        </label>
+        <button className="ghost-action" onClick={() => onExport(rows)}>
+          <FileText size={15} />
+          Unduh CSV / Excel
+        </button>
+        <button className="primary-button compact" onClick={printRecap}>
+          <Printer size={15} />
+          Cetak / PDF
+        </button>
+      </div>
+      <div className="recap-scroller">
+        <table className="recap-table">
+          <thead>
+            <tr>
+              {rows[0].map((cell, index) => (
+                <th key={index}>{cell}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.slice(1).map((row, index) => (
+              <tr key={visible[index]?.id}>
+                {row.map((cell, cellIndex) => (
+                  <td key={cellIndex}>{cell || "—"}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {visible.length === 0 && <EmptyState title="Belum ada data" text="Ubah filter atau tambahkan data santri." />}
+    </section>
+  );
 }
 
 function ReportGradePanel({ current, subjects, scores, setScores, average, passed, completion, semester, onSave, onPreview }: { current: Student; subjects: Subject[]; scores: number[]; setScores: (v: number[]) => void; average: number; passed: boolean; completion: number; semester: string; onSave: () => void; onPreview: () => void }) {
   const activeSubjects = subjects.filter((subject) => subject.active);
-  return <section className="panel report-editor"><header className="report-student-header"><StudentIdentity student={current} /><div><span>{current.level}</span><span>{semester}</span><span>{academicYear}</span></div></header><div className="report-summary"><div><span>Rata-rata</span><strong>{average}</strong></div><div><span>Predikat</span><strong>{reportPredicate(average)[0]}</strong><small>{reportPredicate(average)[1]}</small></div><div><span>Status</span><strong className={passed ? "report-pass" : "report-fail"}>{passed ? "Lulus" : "Belum Lulus"}</strong></div><div><span>Kelengkapan</span><strong>{completion}%</strong></div></div><div className="report-table"><div className="report-table-head"><span>No.</span><span>Mata pelajaran</span><span>KKM</span><span>Nilai</span><span>Predikat</span><span>Keterangan</span></div>{activeSubjects.map((subject, index) => { const value = scores[subject.order] ?? 0; const predicate = reportPredicate(value); return <div className="report-table-row" key={subject.id}><span>{index + 1}</span><span><strong>{subject.name}</strong><small>{subject.arabicName}</small></span><span>70</span><input aria-label={`Nilai ${subject.name}`} type="number" min="0" max="100" value={value} onChange={(event) => setScores(scores.map((score, scoreIndex) => scoreIndex === subject.order ? Math.max(0, Math.min(100, Number(event.target.value))) : score))} /><span className={`predicate predicate-${predicate[0].toLowerCase()}`}>{predicate[0]}</span><span>{value === 0 ? "Belum diisi" : predicate[1]}</span></div>; })}</div><footer className="report-actions"><div><span>Pastikan seluruh nilai sudah benar.</span><small>Nilai minimum kelulusan adalah 70.</small></div><button className="ghost-action" onClick={onPreview}><Eye size={15} />Pratinjau</button><button className="primary-button" onClick={onSave}><Save size={15} />Simpan Nilai</button></footer></section>;
+  return (
+    <section className="panel report-editor">
+      <header className="report-student-header">
+        <StudentIdentity student={current} />
+        <div>
+          <span>{current.level}</span>
+          <span>{semester}</span>
+          <span>{academicYear}</span>
+        </div>
+      </header>
+      <div className="report-summary">
+        <div>
+          <span>Rata-rata</span>
+          <strong>{average}</strong>
+        </div>
+        <div>
+          <span>Predikat</span>
+          <strong>{reportPredicate(average)[0]}</strong>
+          <small>{reportPredicate(average)[1]}</small>
+        </div>
+        <div>
+          <span>Status</span>
+          <strong className={passed ? "report-pass" : "report-fail"}>{passed ? "Lulus" : "Belum Lulus"}</strong>
+        </div>
+        <div>
+          <span>Kelengkapan</span>
+          <strong>{completion}%</strong>
+        </div>
+      </div>
+      <div className="report-table">
+        <div className="report-table-head">
+          <span>No.</span>
+          <span>Mata pelajaran</span>
+          <span>KKM</span>
+          <span>Nilai</span>
+          <span>Predikat</span>
+          <span>Keterangan</span>
+        </div>
+        {activeSubjects.map((subject, index) => {
+          const value = scores[subject.order] ?? 0;
+          const predicate = reportPredicate(value);
+          return (
+            <div className="report-table-row" key={subject.id}>
+              <span>{index + 1}</span>
+              <span>
+                <strong>{subject.name}</strong>
+                <small>{subject.arabicName}</small>
+              </span>
+              <span>70</span>
+              <input aria-label={`Nilai ${subject.name}`} type="number" min="0" max="100" value={value} onChange={(event) => setScores(scores.map((score, scoreIndex) => (scoreIndex === subject.order ? Math.max(0, Math.min(100, Number(event.target.value))) : score)))} />
+              <span className={`predicate predicate-${predicate[0].toLowerCase()}`}>{predicate[0]}</span>
+              <span>{value === 0 ? "Belum diisi" : predicate[1]}</span>
+            </div>
+          );
+        })}
+      </div>
+      <footer className="report-actions">
+        <div>
+          <span>Pastikan seluruh nilai sudah benar.</span>
+          <small>Nilai minimum kelulusan adalah 70.</small>
+        </div>
+        <button className="ghost-action" onClick={onPreview}>
+          <Eye size={15} />
+          Pratinjau
+        </button>
+        <button className="primary-button" onClick={onSave}>
+          <Save size={15} />
+          Simpan Nilai
+        </button>
+      </footer>
+    </section>
+  );
 }
 
 function CertificatesView({ students, onPreview, onValidate, onIssue }: { students: Student[]; onPreview: (s: Student) => void; onValidate: (s: Student) => void; onIssue: (s: Student) => void }) {
-  return <section className="panel full-panel"><PanelHeader title="Daftar ijazah" subtitle="Alur: lengkapi data dan nilai → validasi → terbitkan → cetak PDF." /><div className="certificate-grid">{students.map((student) => {
-    const issues = certificateValidationIssues(student);
-    const state = student.certificateStatus ?? "Belum";
-    return <article className="certificate-card" key={student.id}><div className="certificate-card-icon"><Award size={22} /></div><StudentIdentity student={student} /><div className="certificate-card-meta"><span>Nilai akhir <b>{student.score}</b></span><span className={`issue-status ${state === "Terbit" ? "issued" : ""}`}>{state === "Terbit" ? "Sudah terbit" : state === "Validasi" ? "Tervalidasi" : "Draf"}</span></div>{issues.length > 0 && <small className="validation-note">Perlu dilengkapi: {issues.join(", ")}</small>}<div className="certificate-card-actions">{state === "Terbit" ? <button className="ghost-action" onClick={() => onPreview(student)}><Eye size={15} />Pratinjau / PDF</button> : state === "Validasi" ? <button className="primary-button compact" onClick={() => onIssue(student)}><FileCheck2 size={15} />Terbitkan</button> : <button className="primary-button compact" disabled={issues.length > 0} onClick={() => onValidate(student)}><Check size={15} />Validasi</button>}</div></article>;
-  })}</div></section>;
+  return (
+    <section className="panel full-panel">
+      <PanelHeader title="Daftar ijazah" subtitle="Alur: lengkapi data dan nilai → validasi → terbitkan → cetak PDF." />
+      <div className="certificate-grid">
+        {students.map((student) => {
+          const issues = certificateValidationIssues(student);
+          const state = student.certificateStatus ?? "Belum";
+          return (
+            <article className="certificate-card" key={student.id}>
+              <div className="certificate-card-icon">
+                <Award size={22} />
+              </div>
+              <StudentIdentity student={student} />
+              <div className="certificate-card-meta">
+                <span>
+                  Nilai akhir <b>{student.score}</b>
+                </span>
+                <span className={`issue-status ${state === "Terbit" ? "issued" : ""}`}>{state === "Terbit" ? "Sudah terbit" : state === "Validasi" ? "Tervalidasi" : "Draf"}</span>
+              </div>
+              {issues.length > 0 && <small className="validation-note">Perlu dilengkapi: {issues.join(", ")}</small>}
+              <div className="certificate-card-actions">
+                {state === "Terbit" ? (
+                  <button className="ghost-action" onClick={() => onPreview(student)}>
+                    <Eye size={15} />
+                    Pratinjau / PDF
+                  </button>
+                ) : state === "Validasi" ? (
+                  <button className="primary-button compact" onClick={() => onIssue(student)}>
+                    <FileCheck2 size={15} />
+                    Terbitkan
+                  </button>
+                ) : (
+                  <button className="primary-button compact" disabled={issues.length > 0} onClick={() => onValidate(student)}>
+                    <Check size={15} />
+                    Validasi
+                  </button>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
 
 function SubjectsView({ subjects, setSubjects, onSave }: { subjects: Subject[]; setSubjects: (s: Subject[]) => void; onSave: () => void }) {
-  return <section className="panel settings-panel"><PanelHeader title="Daftar mata pelajaran" subtitle="Urutan ini digunakan pada input nilai dan transkrip ijazah." action={<button className="primary-button compact" onClick={onSave}><Save size={15} />Simpan</button>} /><div className="subject-list"><div className="subject-head"><span>No.</span><span>Nama pelajaran</span><span>Nama Arab</span><span>Aktif</span></div>{subjects.map((subject, index) => <div className="subject-row" key={subject.id}><strong>{index + 1}</strong><input value={subject.name} onChange={(e) => setSubjects(subjects.map((item) => item.id === subject.id ? { ...item, name: e.target.value } : item))} /><input dir="rtl" value={subject.arabicName} onChange={(e) => setSubjects(subjects.map((item) => item.id === subject.id ? { ...item, arabicName: e.target.value } : item))} /><label className="switch"><input type="checkbox" checked={subject.active} onChange={(e) => setSubjects(subjects.map((item) => item.id === subject.id ? { ...item, active: e.target.checked } : item))} /><span /></label></div>)}</div></section>;
+  return (
+    <section className="panel settings-panel">
+      <PanelHeader
+        title="Daftar mata pelajaran"
+        subtitle="Urutan ini digunakan pada input nilai dan transkrip ijazah."
+        action={
+          <button className="primary-button compact" onClick={onSave}>
+            <Save size={15} />
+            Simpan
+          </button>
+        }
+      />
+      <div className="subject-list">
+        <div className="subject-head">
+          <span>No.</span>
+          <span>Nama pelajaran</span>
+          <span>Nama Arab</span>
+          <span>Aktif</span>
+        </div>
+        {subjects.map((subject, index) => (
+          <div className="subject-row" key={subject.id}>
+            <strong>{index + 1}</strong>
+            <input value={subject.name} onChange={(e) => setSubjects(subjects.map((item) => (item.id === subject.id ? { ...item, name: e.target.value } : item)))} />
+            <input dir="rtl" value={subject.arabicName} onChange={(e) => setSubjects(subjects.map((item) => (item.id === subject.id ? { ...item, arabicName: e.target.value } : item)))} />
+            <label className="switch">
+              <input type="checkbox" checked={subject.active} onChange={(e) => setSubjects(subjects.map((item) => (item.id === subject.id ? { ...item, active: e.target.checked } : item)))} />
+              <span />
+            </label>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function SettingsView({ value, setValue, onSave }: { value: InstitutionSettings; setValue: (v: InstitutionSettings) => void; onSave: (e: FormEvent) => void }) {
-  const field = (key: keyof InstitutionSettings, label: string, dir?: "rtl") => <label className="form-field"><span>{label}</span><input dir={dir} value={value[key]} onChange={(e) => setValue({ ...value, [key]: e.target.value })} required /></label>;
-  return <section className="panel settings-panel"><PanelHeader title="Identitas lembaga" subtitle="Informasi ini otomatis tampil pada ijazah yang diterbitkan." /><form className="settings-form" onSubmit={onSave}>{field("foundation", "Nama yayasan")}{field("arabicFoundation", "Nama yayasan (Arab)", "rtl")}{field("name", "Nama pesantren")}{field("arabicName", "Nama pesantren (Arab)", "rtl")}{field("principal", "Nama kepala pesantren")}{field("city", "Kota penerbitan")}{field("address", "Alamat lengkap")}{field("arabicAddress", "Alamat singkat (Arab)", "rtl")}<button className="primary-button" type="submit"><Save size={16} />Simpan Pengaturan</button></form></section>;
+  const field = (key: keyof InstitutionSettings, label: string, dir?: "rtl") => (
+    <label className="form-field">
+      <span>{label}</span>
+      <input dir={dir} value={value[key]} onChange={(e) => setValue({ ...value, [key]: e.target.value })} required />
+    </label>
+  );
+  return (
+    <section className="panel settings-panel">
+      <PanelHeader title="Identitas lembaga" subtitle="Informasi ini otomatis tampil pada ijazah yang diterbitkan." />
+      <form className="settings-form" onSubmit={onSave}>
+        {field("foundation", "Nama yayasan")}
+        {field("arabicFoundation", "Nama yayasan (Arab)", "rtl")}
+        {field("name", "Nama pesantren")}
+        {field("arabicName", "Nama pesantren (Arab)", "rtl")}
+        {field("principal", "Nama kepala pesantren")}
+        {field("city", "Kota penerbitan")}
+        {field("address", "Alamat lengkap")}
+        {field("arabicAddress", "Alamat singkat (Arab)", "rtl")}
+        <button className="primary-button" type="submit">
+          <Save size={16} />
+          Simpan Pengaturan
+        </button>
+      </form>
+    </section>
+  );
 }
 
 function StudentModal({ value, setValue, isNew, onClose, onSubmit }: { value: Student; setValue: (v: Student) => void; isNew: boolean; onClose: () => void; onSubmit: (e: FormEvent) => void }) {
-  const field = (key: keyof Student, label: string, type = "text", dir?: "rtl") => <label className="form-field"><span>{label}</span><input type={type} dir={dir} disabled={key === "id" && !isNew} value={String(value[key] ?? "")} onChange={(e) => setValue({ ...value, [key]: e.target.value })} required={key === "name" || key === "id"} /></label>;
-  return <div className="modal-backdrop" onClick={onClose}><section className="form-modal" role="dialog" aria-modal="true" aria-labelledby="student-modal-title" onClick={(e) => e.stopPropagation()}><div className="preview-header"><div><p className="eyebrow accent">DATA SANTRI</p><h2 id="student-modal-title">{isNew ? "Tambah santri baru" : `Edit ${value.name}`}</h2><p>Lengkapi identitas untuk penerbitan ijazah.</p></div><button className="close-button" aria-label="Tutup" onClick={onClose}><X size={20} /></button></div><form className="student-form" onSubmit={onSubmit}>{field("id", "Nomor syahadah")}{field("nisn", "NISN")}{field("name", "Nama lengkap")}{field("arabicName", "Nama dalam bahasa Arab", "text", "rtl")}{field("birthPlace", "Tempat lahir")}{field("birthDate", "Tanggal lahir", "date")}{field("guardian", "Nama wali")}<label className="form-field"><span>Jenjang</span><select value={value.level} onChange={(e) => setValue({ ...value, level: e.target.value })}><option>Ula</option><option>Wustha</option><option>Ulya</option></select></label><div className="form-actions"><button type="button" className="ghost-action" onClick={onClose}>Batal</button><button type="submit" className="primary-button"><Save size={16} />Simpan Data</button></div></form></section></div>;
+  const field = (key: keyof Student, label: string, type = "text", dir?: "rtl") => (
+    <label className="form-field">
+      <span>{label}</span>
+      <input type={type} dir={dir} disabled={key === "id" && !isNew} value={String(value[key] ?? "")} onChange={(e) => setValue({ ...value, [key]: e.target.value })} required={key === "name" || key === "id"} />
+    </label>
+  );
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <section className="form-modal" role="dialog" aria-modal="true" aria-labelledby="student-modal-title" onClick={(e) => e.stopPropagation()}>
+        <div className="preview-header">
+          <div>
+            <p className="eyebrow accent">DATA SANTRI</p>
+            <h2 id="student-modal-title">{isNew ? "Tambah santri baru" : `Edit ${value.name}`}</h2>
+            <p>Lengkapi identitas untuk penerbitan ijazah.</p>
+          </div>
+          <button className="close-button" aria-label="Tutup" onClick={onClose}>
+            <X size={20} />
+          </button>
+        </div>
+        <form className="student-form" onSubmit={onSubmit}>
+          {field("id", "Nomor syahadah")}
+          {field("nisn", "NISN")}
+          {field("name", "Nama lengkap")}
+          {field("arabicName", "Nama dalam bahasa Arab", "text", "rtl")}
+          {field("birthPlace", "Tempat lahir")}
+          {field("birthDate", "Tanggal lahir", "date")}
+          {field("guardian", "Nama wali")}
+          <label className="form-field">
+            <span>Jenjang</span>
+            <select value={value.level} onChange={(e) => setValue({ ...value, level: e.target.value })}>
+              <option>Ula</option>
+              <option>Wustha</option>
+              <option>Ulya</option>
+            </select>
+          </label>
+          <div className="form-actions">
+            <button type="button" className="ghost-action" onClick={onClose}>
+              Batal
+            </button>
+            <button type="submit" className="primary-button">
+              <Save size={16} />
+              Simpan Data
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
 }
 
 function TemplateDesigner({ template, setTemplate, student, scores, subjects, institution, onSave, notify }: { template: CertificateTemplate; setTemplate: (value: CertificateTemplate) => void; student: Student; scores: number[]; subjects: Subject[]; institution: InstitutionSettings; onSave: () => void; notify: (message: string) => void }) {
   const [page, setPage] = useState<1 | 2>(1);
   const [selected, setSelected] = useState<TemplateElementId>("coverTitle");
-  const visibleIds = (Object.keys(templateLabels) as TemplateElementId[]).filter((id) => page === 1 ? id.startsWith("cover") : id.startsWith("transcript") && id !== "transcriptWatermark");
-  function updatePosition(id: TemplateElementId, x: number, y: number) { setTemplate({ ...template, positions: { ...template.positions, [id]: { x: Math.max(2, Math.min(98, x)), y: Math.max(2, Math.min(98, y)) } } }); }
+  const visibleIds = (Object.keys(templateLabels) as TemplateElementId[]).filter((id) => (page === 1 ? id.startsWith("cover") : id.startsWith("transcript") && id !== "transcriptWatermark"));
+  function updatePosition(id: TemplateElementId, x: number, y: number) {
+    setTemplate({
+      ...template,
+      positions: {
+        ...template.positions,
+        [id]: {
+          x: Math.max(2, Math.min(98, x)),
+          y: Math.max(2, Math.min(98, y)),
+        },
+      },
+    });
+  }
   function uploadImage(file: File | undefined, key: "logoDataUrl" | "watermarkDataUrl") {
     if (!file) return;
     if (!file.type.startsWith("image/")) return notify("File harus berupa gambar.");
     if (file.size > 280_000) return notify("Ukuran gambar maksimal 280 KB.");
-    const reader = new FileReader(); reader.onload = () => setTemplate({ ...template, [key]: String(reader.result) }); reader.readAsDataURL(file);
+    const reader = new FileReader();
+    reader.onload = () => setTemplate({ ...template, [key]: String(reader.result) });
+    reader.readAsDataURL(file);
   }
   const position = template.positions[selected];
   const editableText = template.texts[selected];
   const selectedStyle = template.styles[selected];
-  return <div className="designer-layout"><aside className="panel designer-controls"><PanelHeader title="Editor template" subtitle="Pilih elemen, edit teks, font, ukuran, lalu geser." /><div className="design-section"><strong>Halaman</strong><div className="page-switch"><button className={page === 1 ? "active" : ""} onClick={() => { setPage(1); setSelected("coverTitle"); }}>Halaman 1</button><button className={page === 2 ? "active" : ""} onClick={() => { setPage(2); setSelected("transcriptTitle"); }}>Halaman 2</button></div></div><div className="design-section"><strong>Elemen</strong><div className="element-list">{visibleIds.map((id) => <button key={id} className={selected === id ? "active" : ""} onClick={() => setSelected(id)}><Move size={13} />{templateLabels[id]}</button>)}</div></div><div className="coordinate-grid"><label>X (%)<input type="number" min="2" max="98" value={Math.round(position.x)} onChange={(e) => updatePosition(selected, Number(e.target.value), position.y)} /></label><label>Y (%)<input type="number" min="2" max="98" value={Math.round(position.y)} onChange={(e) => updatePosition(selected, position.x, Number(e.target.value))} /></label></div>{editableText !== undefined && selectedStyle && <div className="design-section text-editor"><strong>Edit teks: {templateLabels[selected]}</strong><textarea dir="auto" value={editableText} onChange={(e) => setTemplate({ ...template, texts: { ...template.texts, [selected]: e.target.value } })} /><div className="typography-grid"><label>Jenis font<select value={selectedStyle.fontFamily} onChange={(e) => setTemplate({ ...template, styles: { ...template.styles, [selected]: { ...selectedStyle, fontFamily: e.target.value } } })}>{certificateFonts.map((font) => <option key={font} value={font}>{font}</option>)}</select></label><label>Ukuran<input type="number" min="6" max="72" value={selectedStyle.fontSize} onChange={(e) => setTemplate({ ...template, styles: { ...template.styles, [selected]: { ...selectedStyle, fontSize: Math.max(6, Math.min(72, Number(e.target.value))) } } })} /></label></div><label className="font-size-slider">Ukuran {selectedStyle.fontSize}px<input type="range" min="6" max="72" value={selectedStyle.fontSize} onChange={(e) => setTemplate({ ...template, styles: { ...template.styles, [selected]: { ...selectedStyle, fontSize: Number(e.target.value) } } })} /></label><small>Variabel otomatis: {"{{nama_arab}}, {{nomor_induk}}, {{nilai_rata}}, {{nama_pesantren}}, {{kepala_sekolah}}"}</small></div>}<div className="design-section"><strong>Logo sekolah</strong><label className="upload-button"><ImagePlus size={15} />Unggah logo<input type="file" accept="image/*" onChange={(e) => uploadImage(e.target.files?.[0], "logoDataUrl")} /></label><label className="range-field">Ukuran <input type="range" min="6" max="24" value={template.logoSize} onChange={(e) => setTemplate({ ...template, logoSize: Number(e.target.value) })} /></label></div><div className="design-section"><strong>Watermark</strong><label className="upload-button"><ImagePlus size={15} />Unggah watermark<input type="file" accept="image/*" onChange={(e) => uploadImage(e.target.files?.[0], "watermarkDataUrl")} /></label><label className="range-field">Ukuran <input type="range" min="20" max="75" value={template.watermarkSize} onChange={(e) => setTemplate({ ...template, watermarkSize: Number(e.target.value) })} /></label><label className="range-field">Opasitas <input type="range" min="0.02" max="0.3" step="0.01" value={template.watermarkOpacity} onChange={(e) => setTemplate({ ...template, watermarkOpacity: Number(e.target.value) })} /></label></div><div className="designer-actions"><button className="ghost-action" onClick={() => setTemplate(defaultTemplate)}><RotateCcw size={14} />Reset</button><button className="primary-button" onClick={onSave}><Save size={15} />Simpan desain</button></div></aside><section className="panel designer-stage"><div className="designer-hint"><Pencil size={15} />Edit teks, font, dan ukuran di panel kiri; seret elemen untuk memindahkan.</div><div className="designer-canvas"><CertificatePages student={student} scores={scores} subjects={subjects} institution={institution} template={template} page={page} editable selected={selected} onSelect={setSelected} onMove={updatePosition} /></div></section></div>;
+  return (
+    <div className="designer-layout">
+      <aside className="panel designer-controls">
+        <PanelHeader title="Editor template" subtitle="Pilih elemen, edit teks, font, ukuran, lalu geser." />
+        <div className="design-section">
+          <strong>Halaman</strong>
+          <div className="page-switch">
+            <button
+              className={page === 1 ? "active" : ""}
+              onClick={() => {
+                setPage(1);
+                setSelected("coverTitle");
+              }}
+            >
+              Halaman 1
+            </button>
+            <button
+              className={page === 2 ? "active" : ""}
+              onClick={() => {
+                setPage(2);
+                setSelected("transcriptTitle");
+              }}
+            >
+              Halaman 2
+            </button>
+          </div>
+        </div>
+        <div className="design-section">
+          <strong>Elemen</strong>
+          <div className="element-list">
+            {visibleIds.map((id) => (
+              <button key={id} className={selected === id ? "active" : ""} onClick={() => setSelected(id)}>
+                <Move size={13} />
+                {templateLabels[id]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="coordinate-grid">
+          <label>
+            X (%)
+            <input type="number" min="2" max="98" value={Math.round(position.x)} onChange={(e) => updatePosition(selected, Number(e.target.value), position.y)} />
+          </label>
+          <label>
+            Y (%)
+            <input type="number" min="2" max="98" value={Math.round(position.y)} onChange={(e) => updatePosition(selected, position.x, Number(e.target.value))} />
+          </label>
+        </div>
+        {editableText !== undefined && selectedStyle && (
+          <div className="design-section text-editor">
+            <strong>Edit teks: {templateLabels[selected]}</strong>
+            <textarea
+              dir="auto"
+              value={editableText}
+              onChange={(e) =>
+                setTemplate({
+                  ...template,
+                  texts: { ...template.texts, [selected]: e.target.value },
+                })
+              }
+            />
+            <div className="typography-grid">
+              <label>
+                Jenis font
+                <select
+                  value={selectedStyle.fontFamily}
+                  onChange={(e) =>
+                    setTemplate({
+                      ...template,
+                      styles: {
+                        ...template.styles,
+                        [selected]: {
+                          ...selectedStyle,
+                          fontFamily: e.target.value,
+                        },
+                      },
+                    })
+                  }
+                >
+                  {certificateFonts.map((font) => (
+                    <option key={font} value={font}>
+                      {font}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Ukuran
+                <input
+                  type="number"
+                  min="6"
+                  max="72"
+                  value={selectedStyle.fontSize}
+                  onChange={(e) =>
+                    setTemplate({
+                      ...template,
+                      styles: {
+                        ...template.styles,
+                        [selected]: {
+                          ...selectedStyle,
+                          fontSize: Math.max(6, Math.min(72, Number(e.target.value))),
+                        },
+                      },
+                    })
+                  }
+                />
+              </label>
+            </div>
+            <label className="font-size-slider">
+              Ukuran {selectedStyle.fontSize}px
+              <input
+                type="range"
+                min="6"
+                max="72"
+                value={selectedStyle.fontSize}
+                onChange={(e) =>
+                  setTemplate({
+                    ...template,
+                    styles: {
+                      ...template.styles,
+                      [selected]: {
+                        ...selectedStyle,
+                        fontSize: Number(e.target.value),
+                      },
+                    },
+                  })
+                }
+              />
+            </label>
+            <small>Variabel otomatis: {"{{nama_arab}}, {{nomor_induk}}, {{nilai_rata}}, {{nama_pesantren}}, {{kepala_sekolah}}"}</small>
+          </div>
+        )}
+        <div className="design-section">
+          <strong>Logo sekolah</strong>
+          <label className="upload-button">
+            <ImagePlus size={15} />
+            Unggah logo
+            <input type="file" accept="image/*" onChange={(e) => uploadImage(e.target.files?.[0], "logoDataUrl")} />
+          </label>
+          <label className="range-field">
+            Ukuran <input type="range" min="6" max="24" value={template.logoSize} onChange={(e) => setTemplate({ ...template, logoSize: Number(e.target.value) })} />
+          </label>
+        </div>
+        <div className="design-section">
+          <strong>Watermark</strong>
+          <label className="upload-button">
+            <ImagePlus size={15} />
+            Unggah watermark
+            <input type="file" accept="image/*" onChange={(e) => uploadImage(e.target.files?.[0], "watermarkDataUrl")} />
+          </label>
+          <label className="range-field">
+            Ukuran{" "}
+            <input
+              type="range"
+              min="20"
+              max="75"
+              value={template.watermarkSize}
+              onChange={(e) =>
+                setTemplate({
+                  ...template,
+                  watermarkSize: Number(e.target.value),
+                })
+              }
+            />
+          </label>
+          <label className="range-field">
+            Opasitas{" "}
+            <input
+              type="range"
+              min="0.02"
+              max="0.3"
+              step="0.01"
+              value={template.watermarkOpacity}
+              onChange={(e) =>
+                setTemplate({
+                  ...template,
+                  watermarkOpacity: Number(e.target.value),
+                })
+              }
+            />
+          </label>
+        </div>
+        <div className="designer-actions">
+          <button
+            className="ghost-action"
+            onClick={() => {
+              if (!window.confirm("Reset seluruh posisi, teks, font, logo, dan watermark ke desain awal?")) return;
+              setTemplate(defaultTemplate);
+              setSelected(page === 1 ? "coverTitle" : "transcriptTitle");
+              notify("Desain dikembalikan ke pengaturan awal. Klik Simpan desain untuk menerapkannya.");
+            }}
+          >
+            <RotateCcw size={14} />
+            Reset
+          </button>
+          <button className="primary-button" onClick={onSave}>
+            <Save size={15} />
+            Simpan desain
+          </button>
+        </div>
+      </aside>
+      <section className="panel designer-stage">
+        <div className="designer-hint">
+          <Pencil size={15} />
+          Edit teks, font, dan ukuran di panel kiri; seret elemen untuk memindahkan.
+        </div>
+        <div className="designer-canvas">
+          <CertificatePages student={student} scores={scores} subjects={subjects} institution={institution} template={template} page={page} editable selected={selected} onSelect={setSelected} onMove={updatePosition} />
+        </div>
+      </section>
+    </div>
+  );
 }
 
 function scoreArabicWords(value: number) {
   const ones = ["صفر", "واحد", "اثنان", "ثلاثة", "أربعة", "خمسة", "ستة", "سبعة", "ثمانية", "تسعة"];
   const teens = ["عشرة", "أحد عشر", "اثنا عشر", "ثلاثة عشر", "أربعة عشر", "خمسة عشر", "ستة عشر", "سبعة عشر", "ثمانية عشر", "تسعة عشر"];
   const tens = ["", "", "عشرون", "ثلاثون", "أربعون", "خمسون", "ستون", "سبعون", "ثمانون", "تسعون"];
-  if (value >= 100) return "مائة"; if (value < 10) return ones[value]; if (value < 20) return teens[value - 10];
+  if (value >= 100) return "مائة";
+  if (value < 10) return ones[value];
+  if (value < 20) return teens[value - 10];
   return value % 10 ? `${ones[value % 10]} و${tens[Math.floor(value / 10)]}` : tens[Math.floor(value / 10)];
 }
 
 function TemplateBlock({ id, template, editable, selected, onSelect, onMove, children }: { id: TemplateElementId; template: CertificateTemplate; editable?: boolean; selected?: TemplateElementId; onSelect?: (id: TemplateElementId) => void; onMove?: (id: TemplateElementId, x: number, y: number) => void; children: ReactNode }) {
   const position = template.positions[id];
   const textStyle = template.styles[id];
-  const drag = useRef<{ pointerId: number; startX: number; startY: number; baseX: number; baseY: number; moved: boolean } | null>(null);
+  const drag = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    baseX: number;
+    baseY: number;
+    moved: boolean;
+  } | null>(null);
   function startDrag(event: React.PointerEvent<HTMLDivElement>) {
     if (!editable) return;
     event.stopPropagation();
     onSelect?.(id);
-    drag.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, baseX: position.x, baseY: position.y, moved: false };
+    drag.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      baseX: position.x,
+      baseY: position.y,
+      moved: false,
+    };
     event.currentTarget.setPointerCapture(event.pointerId);
   }
   function continueDrag(event: React.PointerEvent<HTMLDivElement>) {
     const state = drag.current;
     if (!state || state.pointerId !== event.pointerId || !onMove) return;
-    const deltaX = event.clientX - state.startX; const deltaY = event.clientY - state.startY;
+    const deltaX = event.clientX - state.startX;
+    const deltaY = event.clientY - state.startY;
     if (!state.moved && Math.hypot(deltaX, deltaY) < 4) return;
     state.moved = true;
     const rect = event.currentTarget.parentElement!.getBoundingClientRect();
@@ -309,53 +1720,343 @@ function TemplateBlock({ id, template, editable, selected, onSelect, onMove, chi
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     drag.current = null;
   }
-  const blockStyle = { left: `${position.x}%`, top: `${position.y}%`, fontFamily: textStyle?.fontFamily, fontSize: textStyle?.fontSize } as React.CSSProperties;
-  return <div className={`template-block ${id} ${textStyle ? "has-text-style" : ""} ${editable ? "editable" : ""} ${selected === id ? "selected" : ""}`} style={blockStyle} onClick={(event) => { if (editable) { event.stopPropagation(); onSelect?.(id); } }} onPointerDown={startDrag} onPointerMove={continueDrag} onPointerUp={stopDrag} onPointerCancel={stopDrag}>{children}</div>;
+  const blockStyle = {
+    left: `${position.x}%`,
+    top: `${position.y}%`,
+    fontFamily: textStyle?.fontFamily,
+    fontSize: textStyle?.fontSize,
+  } as React.CSSProperties;
+  return (
+    <div
+      className={`template-block ${id} ${textStyle ? "has-text-style" : ""} ${editable ? "editable" : ""} ${selected === id ? "selected" : ""}`}
+      style={blockStyle}
+      onClick={(event) => {
+        if (editable) {
+          event.stopPropagation();
+          onSelect?.(id);
+        }
+      }}
+      onPointerDown={startDrag}
+      onPointerMove={continueDrag}
+      onPointerUp={stopDrag}
+      onPointerCancel={stopDrag}
+    >
+      {children}
+    </div>
+  );
 }
 
 function CertificatePages({ student, scores, subjects, institution, template, page, editable, selected, onSelect, onMove }: { student: Student; scores: number[]; subjects: Subject[]; institution: InstitutionSettings; template: CertificateTemplate; page?: 1 | 2; editable?: boolean; selected?: TemplateElementId; onSelect?: (id: TemplateElementId) => void; onMove?: (id: TemplateElementId, x: number, y: number) => void }) {
-  const average = Math.round(scores.reduce((sum, score) => sum + score, 0) / Math.max(scores.length, 1)); const passed = average >= 70;
-  const birthDate = student.birthDate ? new Intl.DateTimeFormat("ar-EG", { day: "numeric", month: "long", year: "numeric" }).format(new Date(`${student.birthDate}T00:00:00`)) : "—";
+  const average = Math.round(scores.reduce((sum, score) => sum + score, 0) / Math.max(scores.length, 1));
+  const passed = average >= 70;
+  const birthDate = student.birthDate
+    ? new Intl.DateTimeFormat("ar-EG", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(new Date(`${student.birthDate}T00:00:00`))
+    : "—";
   const levelArabic = student.level === "Ulya" ? "المرحلة العليا" : student.level === "Wustha" ? "المرحلة المتوسطة" : "المرحلة الأولى";
-  const activeSubjects = subjects.filter((subject) => subject.active); const rows = Array.from({ length: 15 }, (_, index) => activeSubjects[index]);
+  const activeSubjects = subjects.filter((subject) => subject.active);
+  const rows = Array.from({ length: 15 }, (_, index) => activeSubjects[index]);
   const total = scores.reduce((sum, score) => sum + score, 0);
   const variables: Record<string, string> = {
-    nama_santri: student.name, nama_arab: student.arabicName || student.name, nomor_induk: student.nisn || student.id,
-    tempat_lahir: student.birthPlace || "—", tanggal_lahir: birthDate, jenjang_arab: levelArabic,
-    status_arab: passed ? "وَنَجَحَ" : "وَلَمْ يَنْجَحْ", nilai_rata: numberToArabic(average), jumlah_nilai: numberToArabic(total),
-    predikat: scoreWord(average), hasil_arab: passed ? "ناجح" : "غير ناجح", nama_pesantren: institution.name,
-    pesantren_arab: institution.arabicName, yayasan_arab: institution.arabicFoundation, alamat_arab: institution.arabicAddress,
-    kepala_sekolah: institution.principal, tahun_ajaran: academicYear,
+    nama_santri: student.name,
+    nama_arab: student.arabicName || student.name,
+    nomor_induk: student.nisn || student.id,
+    tempat_lahir: student.birthPlace || "—",
+    tanggal_lahir: birthDate,
+    jenjang_arab: levelArabic,
+    status_arab: passed ? "وَنَجَحَ" : "وَلَمْ يَنْجَحْ",
+    nilai_rata: numberToArabic(average),
+    jumlah_nilai: numberToArabic(total),
+    predikat: scoreWord(average),
+    hasil_arab: passed ? "ناجح" : "غير ناجح",
+    nama_pesantren: institution.name,
+    pesantren_arab: institution.arabicName,
+    yayasan_arab: institution.arabicFoundation,
+    alamat_arab: institution.arabicAddress,
+    kepala_sekolah: institution.principal,
+    tahun_ajaran: academicYear,
     tanggal_cetak: `${numberToArabic(now.getDate())} / ${numberToArabic(now.getMonth() + 1)} / ${numberToArabic(now.getFullYear())} م`,
   };
   const text = (id: TemplateElementId) => fillTemplate(template.texts[id] ?? defaultTemplate.texts[id] ?? "", variables);
   const blockProps = { template, editable, selected, onSelect, onMove };
-  const logo = <>{template.logoDataUrl ? <span className="image-layer" style={{ backgroundImage: `url(${template.logoDataUrl})`, width: `${template.logoSize * 4}px`, height: `${template.logoSize * 4}px` }} /> : <div className="arabic-emblem"><BookOpen size={24} /><small>مَعْهَدٌ إِسْلَامِيٌّ</small></div>}</>;
-  const watermark = <>{template.watermarkDataUrl ? <span className="image-layer" style={{ backgroundImage: `url(${template.watermarkDataUrl})`, width: `${template.watermarkSize * 4}px`, height: `${template.watermarkSize * 4}px`, opacity: template.watermarkOpacity }} /> : <div className="default-watermark" style={{ width: `${template.watermarkSize * 4}px`, height: `${template.watermarkSize * 4}px`, opacity: template.watermarkOpacity }}><BookOpen size={74} /><span>{text("coverWatermark")}</span></div>}</>;
+  const logo = (
+    <>
+      {template.logoDataUrl ? (
+        <span
+          className="image-layer"
+          style={{
+            backgroundImage: `url(${template.logoDataUrl})`,
+            width: `${template.logoSize * 4}px`,
+            height: `${template.logoSize * 4}px`,
+          }}
+        />
+      ) : (
+        <div className="arabic-emblem">
+          <BookOpen size={24} />
+          <small>مَعْهَدٌ إِسْلَامِيٌّ</small>
+        </div>
+      )}
+    </>
+  );
+  const watermark = (
+    <>
+      {template.watermarkDataUrl ? (
+        <span
+          className="image-layer"
+          style={{
+            backgroundImage: `url(${template.watermarkDataUrl})`,
+            width: `${template.watermarkSize * 4}px`,
+            height: `${template.watermarkSize * 4}px`,
+            opacity: template.watermarkOpacity,
+          }}
+        />
+      ) : (
+        <div
+          className="default-watermark"
+          style={{
+            width: `${template.watermarkSize * 4}px`,
+            height: `${template.watermarkSize * 4}px`,
+            opacity: template.watermarkOpacity,
+          }}
+        >
+          <BookOpen size={74} />
+          <span>{text("coverWatermark")}</span>
+        </div>
+      )}
+    </>
+  );
   const institutionLines = text("coverInstitution").split("\n");
   const tableText = text("transcriptTable").split("\n");
   const tableHeaders = (tableText[0] ?? "").split("|");
   const summaryLabels = (tableText[1] ?? "").split("|");
-  return <>{(!page || page === 1) && <div className="cert-page cert-cover arabic-certificate" dir="rtl"><CertificateFrame /><TemplateBlock id="coverWatermark" {...blockProps}>{watermark}</TemplateBlock><TemplateBlock id="coverLogo" {...blockProps}>{logo}</TemplateBlock><TemplateBlock id="coverTitle" {...blockProps}><h3 className="arabic-main-title">{text("coverTitle")}</h3></TemplateBlock><TemplateBlock id="coverInstitution" {...blockProps}><div className="cover-institution">{institutionLines.map((line, index) => index === 1 ? <strong key={index}>{line}</strong> : index === 0 ? <p key={index}>{line}</p> : <span key={index}>{line}</span>)}</div></TemplateBlock><TemplateBlock id="coverYear" {...blockProps}><b className="cover-year">{text("coverYear")}</b></TemplateBlock><TemplateBlock id="coverOpening" {...blockProps}><div className="cover-opening">{text("coverOpening").split("\n").map((line, index) => <p key={index}>{line}</p>)}</div></TemplateBlock><TemplateBlock id="coverStudent" {...blockProps}><EditableDataRows content={text("coverStudent")} /></TemplateBlock><TemplateBlock id="coverDecision" {...blockProps}><p className="arabic-decision">{text("coverDecision")}</p></TemplateBlock><TemplateBlock id="coverPhoto" {...blockProps}><PhotoBox content={text("coverPhoto")} /></TemplateBlock><TemplateBlock id="coverSignature" {...blockProps}><EditableSignature content={text("coverSignature")} /></TemplateBlock></div>}{(!page || page === 2) && <div className="cert-page arabic-certificate transcript-arabic" dir="rtl"><CertificateFrame /><TemplateBlock id="transcriptLogo" {...blockProps}>{logo}</TemplateBlock><TemplateBlock id="transcriptTitle" {...blockProps}><h3 className="transcript-arabic-title">{text("transcriptTitle")}</h3></TemplateBlock><TemplateBlock id="transcriptStudent" {...blockProps}><EditableDataRows content={text("transcriptStudent")} compact /></TemplateBlock><TemplateBlock id="transcriptTable" {...blockProps}><div className="arabic-score-table"><table><thead><tr>{Array.from({ length: 5 }, (_, index) => <th key={index}>{tableHeaders[index] ?? ""}</th>)}</tr></thead><tbody>{rows.map((subject, index) => { const score = subject ? scores[subject.order] ?? 0 : 0; return <tr key={subject?.id ?? `empty-${index}`}><td>{numberToArabic(index + 1)}</td><td>{subject?.arabicName ?? "-"}</td><td>{subject ? numberToArabic(score) : ""}</td><td>{subject ? scoreArabicWords(score) : ""}</td><td /></tr>; })}<tr className="summary"><th colSpan={2}>{summaryLabels[0] ?? ""}</th><td colSpan={3}>{numberToArabic(total)}</td></tr><tr className="summary"><th colSpan={2}>{summaryLabels[1] ?? ""}</th><td colSpan={3}>{numberToArabic(average)}٪</td></tr><tr className="summary"><th colSpan={2}>{summaryLabels[2] ?? ""}</th><td colSpan={3}>{passed ? "ناجح" : "غير ناجح"}</td></tr><tr className="summary"><th colSpan={2}>{summaryLabels[3] ?? ""}</th><td colSpan={3}>{scoreWord(average)}</td></tr></tbody></table></div></TemplateBlock><TemplateBlock id="transcriptSignature" {...blockProps}><EditableSignature content={text("transcriptSignature")} transcript /></TemplateBlock></div>}</>;
+  return (
+    <>
+      {(!page || page === 1) && (
+        <div className="cert-page cert-cover arabic-certificate" dir="rtl">
+          <CertificateFrame />
+          <TemplateBlock id="coverWatermark" {...blockProps}>
+            {watermark}
+          </TemplateBlock>
+          <TemplateBlock id="coverLogo" {...blockProps}>
+            {logo}
+          </TemplateBlock>
+          <TemplateBlock id="coverTitle" {...blockProps}>
+            <h3 className="arabic-main-title">{text("coverTitle")}</h3>
+          </TemplateBlock>
+          <TemplateBlock id="coverInstitution" {...blockProps}>
+            <div className="cover-institution">{institutionLines.map((line, index) => (index === 1 ? <strong key={index}>{line}</strong> : index === 0 ? <p key={index}>{line}</p> : <span key={index}>{line}</span>))}</div>
+          </TemplateBlock>
+          <TemplateBlock id="coverYear" {...blockProps}>
+            <b className="cover-year">{text("coverYear")}</b>
+          </TemplateBlock>
+          <TemplateBlock id="coverOpening" {...blockProps}>
+            <div className="cover-opening">
+              {text("coverOpening")
+                .split("\n")
+                .map((line, index) => (
+                  <p key={index}>{line}</p>
+                ))}
+            </div>
+          </TemplateBlock>
+          <TemplateBlock id="coverStudent" {...blockProps}>
+            <EditableDataRows content={text("coverStudent")} />
+          </TemplateBlock>
+          <TemplateBlock id="coverDecision" {...blockProps}>
+            <p className="arabic-decision">{text("coverDecision")}</p>
+          </TemplateBlock>
+          <TemplateBlock id="coverPhoto" {...blockProps}>
+            <PhotoBox content={text("coverPhoto")} />
+          </TemplateBlock>
+          <TemplateBlock id="coverSignature" {...blockProps}>
+            <EditableSignature content={text("coverSignature")} />
+          </TemplateBlock>
+        </div>
+      )}
+      {(!page || page === 2) && (
+        <div className="cert-page arabic-certificate transcript-arabic" dir="rtl">
+          <CertificateFrame />
+          <TemplateBlock id="transcriptLogo" {...blockProps}>
+            {logo}
+          </TemplateBlock>
+          <TemplateBlock id="transcriptTitle" {...blockProps}>
+            <h3 className="transcript-arabic-title">{text("transcriptTitle")}</h3>
+          </TemplateBlock>
+          <TemplateBlock id="transcriptStudent" {...blockProps}>
+            <EditableDataRows content={text("transcriptStudent")} compact />
+          </TemplateBlock>
+          <TemplateBlock id="transcriptTable" {...blockProps}>
+            <div className="arabic-score-table">
+              <table>
+                <thead>
+                  <tr>
+                    {Array.from({ length: 5 }, (_, index) => (
+                      <th key={index}>{tableHeaders[index] ?? ""}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((subject, index) => {
+                    const score = subject ? (scores[subject.order] ?? 0) : 0;
+                    return (
+                      <tr key={subject?.id ?? `empty-${index}`}>
+                        <td>{numberToArabic(index + 1)}</td>
+                        <td>{subject?.arabicName ?? "-"}</td>
+                        <td>{subject ? numberToArabic(score) : ""}</td>
+                        <td>{subject ? scoreArabicWords(score) : ""}</td>
+                        <td />
+                      </tr>
+                    );
+                  })}
+                  <tr className="summary">
+                    <th colSpan={2}>{summaryLabels[0] ?? ""}</th>
+                    <td colSpan={3}>{numberToArabic(total)}</td>
+                  </tr>
+                  <tr className="summary">
+                    <th colSpan={2}>{summaryLabels[1] ?? ""}</th>
+                    <td colSpan={3}>{numberToArabic(average)}٪</td>
+                  </tr>
+                  <tr className="summary">
+                    <th colSpan={2}>{summaryLabels[2] ?? ""}</th>
+                    <td colSpan={3}>{passed ? "ناجح" : "غير ناجح"}</td>
+                  </tr>
+                  <tr className="summary">
+                    <th colSpan={2}>{summaryLabels[3] ?? ""}</th>
+                    <td colSpan={3}>{scoreWord(average)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </TemplateBlock>
+          <TemplateBlock id="transcriptSignature" {...blockProps}>
+            <EditableSignature content={text("transcriptSignature")} transcript />
+          </TemplateBlock>
+        </div>
+      )}
+    </>
+  );
 }
 
 function CertificateFrame() {
-  return <><div className="ornamental-frame" aria-hidden="true" /><div className="certificate-clean-center" aria-hidden="true" /></>;
+  return (
+    <>
+      <div className="ornamental-frame" aria-hidden="true" />
+      <div className="certificate-clean-center" aria-hidden="true" />
+    </>
+  );
 }
-function fillTemplate(value: string, variables: Record<string, string>) { return value.replace(/\{\{([a-z_]+)\}\}/g, (match, key: string) => variables[key] ?? match); }
-function EditableDataRows({ content, compact = false }: { content: string; compact?: boolean }) { return <div className={`arabic-student-data ${compact ? "compact" : ""}`}>{content.split("\n").map((line, index) => { const [label, ...rest] = line.split("|"); return <div key={index}><span>{label}</span><b>{rest.join("|")}</b></div>; })}</div>; }
-function PhotoBox({ content }: { content: string }) { const lines = content.split("\n"); return <div className="photo-box"><span>{lines[0]}</span><b>{lines.slice(1).join(" ")}</b></div>; }
-function EditableSignature({ content, transcript = false }: { content: string; transcript?: boolean }) { const lines = content.split("\n"); return <div className={transcript ? "transcript-signature" : "arabic-signature"}>{!transcript && <p>{lines[0]}</p>}<strong>{lines[transcript ? 0 : 1]}</strong><div className="signature-space" /><b>{lines[transcript ? 1 : 2]}</b></div>; }
+function fillTemplate(value: string, variables: Record<string, string>) {
+  return value.replace(/\{\{([a-z_]+)\}\}/g, (match, key: string) => variables[key] ?? match);
+}
+function EditableDataRows({ content, compact = false }: { content: string; compact?: boolean }) {
+  return (
+    <div className={`arabic-student-data ${compact ? "compact" : ""}`}>
+      {content.split("\n").map((line, index) => {
+        const [label, ...rest] = line.split("|");
+        return (
+          <div key={index}>
+            <span>{label}</span>
+            <b>{rest.join("|")}</b>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+function PhotoBox({ content }: { content: string }) {
+  const lines = content.split("\n");
+  return (
+    <div className="photo-box">
+      <span>{lines[0]}</span>
+      <b>{lines.slice(1).join(" ")}</b>
+    </div>
+  );
+}
+function EditableSignature({ content, transcript = false }: { content: string; transcript?: boolean }) {
+  const lines = content.split("\n");
+  return (
+    <div className={transcript ? "transcript-signature" : "arabic-signature"}>
+      {!transcript && <p>{lines[0]}</p>}
+      <strong>{lines[transcript ? 0 : 1]}</strong>
+      <div className="signature-space" />
+      <b>{lines[transcript ? 1 : 2]}</b>
+    </div>
+  );
+}
 
 function CertificateModal({ student, scores, subjects, institution, template, average, passed, onClose }: { student: Student; scores: number[]; subjects: Subject[]; institution: InstitutionSettings; template: CertificateTemplate; average: number; passed: boolean; onClose: () => void }) {
-  return <div className="modal-backdrop" onClick={onClose}><section className="preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-title" onClick={(e) => e.stopPropagation()}><div className="preview-header"><div><p className="eyebrow accent">PREVIEW DOKUMEN</p><h2 id="preview-title">Ijazah {student.name}</h2><p>Dua halaman syahadah Arab siap dicetak.</p></div><button className="close-button" aria-label="Tutup preview" onClick={onClose}><X size={20} /></button></div><div className="certificate-preview"><CertificatePages student={student} scores={scores} subjects={subjects} institution={institution} template={template} /></div><div className="preview-actions"><span className={`print-status ${passed ? "pass" : ""}`}>Rata-rata {average} · {passed ? "Lulus" : "Belum lulus"}</span><button className="ghost-action" onClick={() => window.print()}><Printer size={16} />Cetak A4</button><button className="primary-button" onClick={() => window.print()}><FileText size={16} />Simpan sebagai PDF</button></div></section></div>;
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <section className="preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-title" onClick={(e) => e.stopPropagation()}>
+        <div className="preview-header">
+          <div>
+            <p className="eyebrow accent">PREVIEW DOKUMEN</p>
+            <h2 id="preview-title">Ijazah {student.name}</h2>
+            <p>Dua halaman syahadah Arab siap dicetak.</p>
+          </div>
+          <button className="close-button" aria-label="Tutup preview" onClick={onClose}>
+            <X size={20} />
+          </button>
+        </div>
+        <div className="certificate-preview">
+          <CertificatePages student={student} scores={scores} subjects={subjects} institution={institution} template={template} />
+        </div>
+        <div className="preview-actions">
+          <span className={`print-status ${passed ? "pass" : ""}`}>
+            Rata-rata {average} · {passed ? "Lulus" : "Belum lulus"}
+          </span>
+          <button className="ghost-action" onClick={() => window.print()}>
+            <Printer size={16} />
+            Cetak A4
+          </button>
+          <button className="primary-button" onClick={() => window.print()}>
+            <FileText size={16} />
+            Simpan sebagai PDF
+          </button>
+        </div>
+      </section>
+    </div>
+  );
 }
 
-function AuditPanel({ entries }: { entries: ReturnType<typeof loadAuditEntries> }) {
-  return <aside className="panel audit-panel"><PanelHeader title="Aktivitas admin" subtitle="Riwayat tindakan terakhir untuk proses akademik." /><div className="audit-list">{entries.length ? entries.map((entry) => <div className="audit-row" key={entry.id}><strong>{entry.action}</strong><span>{entry.message}</span><small>{new Date(entry.createdAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</small></div>) : <EmptyState title="Belum ada aktivitas" text="Semua aksi admin akan muncul di sini." />}</div></aside>;
+function PanelHeader({ title, subtitle, action }: { title: string; subtitle: string; action?: ReactNode }) {
+  return (
+    <div className="panel-header">
+      <div>
+        <h2>{title}</h2>
+        <p>{subtitle}</p>
+      </div>
+      {action}
+    </div>
+  );
 }
-
-function PanelHeader({ title, subtitle, action }: { title: string; subtitle: string; action?: ReactNode }) { return <div className="panel-header"><div><h2>{title}</h2><p>{subtitle}</p></div>{action}</div>; }
-function StudentIdentity({ student }: { student: Student }) { return <span className="student-name"><span className={`avatar avatar-${student.tone}`}>{student.initials}</span><span><strong>{student.name}</strong><small>{student.id}</small></span></span>; }
-function StatusBadge({ status }: { status: Student["status"] }) { return <em className={`status ${status === "Lulus" ? "success" : "pending"}`}><i />{status}</em>; }
-function EmptyState({ title, text }: { title: string; text: string }) { return <div className="empty-state"><Search size={24} /><strong>{title}</strong><span>{text}</span></div>; }
+function StudentIdentity({ student }: { student: Student }) {
+  return (
+    <span className="student-name">
+      <span className={`avatar avatar-${student.tone}`}>{student.initials}</span>
+      <span>
+        <strong>{student.name}</strong>
+        <small>{student.id}</small>
+      </span>
+    </span>
+  );
+}
+function StatusBadge({ status }: { status: Student["status"] }) {
+  return (
+    <em className={`status ${status === "Lulus" ? "success" : "pending"}`}>
+      <i />
+      {status}
+    </em>
+  );
+}
+function EmptyState({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="empty-state">
+      <Search size={24} />
+      <strong>{title}</strong>
+      <span>{text}</span>
+    </div>
+  );
+}
