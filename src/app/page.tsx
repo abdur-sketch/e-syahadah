@@ -11,7 +11,7 @@ import { defaultSettings, saveSettings, subscribeToSettings, type InstitutionSet
 import { averageScore, certificateValidationIssues, getCertificateCandidates, getStudentStatus } from "@/lib/academy";
 import { appendAuditEntry, buildCsv, buildStudentsCsv, loadAuditEntries } from "@/lib/admin";
 import { defaultTemplate, saveTemplate, subscribeToTemplate, templateLabels, type CertificateTemplate, type TemplateElementId } from "@/lib/template";
-import { createBackup, downloadBlob, exportStudentsExcel, importStudentsExcel, parseBackup } from "@/lib/data-tools";
+import { createBackup, downloadBlob, downloadImportTemplate, exportStudentsExcel, importStudentsExcel, parseBackup } from "@/lib/data-tools";
 import { createCertificateNumber, createVerificationCode, publishVerification, readPublicVerification, type PublicVerification } from "@/lib/verification";
 
 const initialScores = [82, 88, 76, 91, 84, 79, 86, 90, 81, 87, 85];
@@ -816,7 +816,7 @@ export default function Home() {
           {activeNav === "Desain Ijazah" && <TemplateDesigner template={template} setTemplate={setTemplate} student={currentStudent} scores={scores} subjects={subjects} institution={institution} onSave={persistTemplate} notify={notify} />}
           {activeNav === "Pengaturan" && <SettingsView value={settingsForm} setValue={setSettingsForm} onSave={persistSettings} />}
           {activeNav === "Tahun Ajaran" && <AcademicYearView students={students} academicYear={effectiveAcademicYear} onSave={handleAcademicUpdate} />}
-          {activeNav === "Data & Backup" && <DataToolsView students={students} subjects={subjects} academicYear={effectiveAcademicYear} onImport={handleExcelImport} onExportExcel={() => exportStudentsExcel(students, subjects, `e-syahadah-${effectiveAcademicYear.replace("/", "-")}.xlsx`)} onBackup={handleBackupDownload} onRestore={handleBackupRestore} />}
+          {activeNav === "Data & Backup" && <DataToolsView students={students} subjects={subjects} academicYear={effectiveAcademicYear} onTemplate={() => downloadImportTemplate(subjects)} onImport={handleExcelImport} onExportExcel={() => exportStudentsExcel(students, subjects, `e-syahadah-${effectiveAcademicYear.replace("/", "-")}.xlsx`)} onBackup={handleBackupDownload} onRestore={handleBackupRestore} />}
           {activeNav === "Riwayat" && <AuditHistoryView />}
         </div>
       </section>
@@ -1563,13 +1563,14 @@ function SettingsView({ value, setValue, onSave }: { value: InstitutionSettings;
   );
 }
 
-function DataToolsView({ students, subjects, academicYear, onImport, onExportExcel, onBackup, onRestore }: { students: Student[]; subjects: Subject[]; academicYear: string; onImport: (file: File) => void; onExportExcel: () => void; onBackup: () => void; onRestore: (file: File) => void }) {
+function DataToolsView({ students, subjects, academicYear, onTemplate, onImport, onExportExcel, onBackup, onRestore }: { students: Student[]; subjects: Subject[]; academicYear: string; onTemplate: () => void; onImport: (file: File) => void; onExportExcel: () => void; onBackup: () => void; onRestore: (file: File) => void }) {
   const importRef = useRef<HTMLInputElement>(null);
   const restoreRef = useRef<HTMLInputElement>(null);
   return (
     <section className="panel settings-panel">
       <PanelHeader title="Pusat data" subtitle={`${students.length} santri · ${subjects.length} mata pelajaran · tahun ${academicYear}`} />
       <div className="data-tools-grid">
+        <article><Download size={24} /><h3>Template Excel</h3><p>Unduh format siap isi dengan petunjuk, validasi jenjang, tanggal, dan nilai 0–100.</p><button className="primary-button" onClick={onTemplate}>Unduh template</button></article>
         <article><Upload size={24} /><h3>Impor Excel</h3><p>Tambah atau perbarui santri berdasarkan Nomor Syahadah. Mendukung identitas dan 11 kolom nilai.</p><button className="primary-button" onClick={() => importRef.current?.click()}>Pilih .xlsx</button><input ref={importRef} hidden type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(event) => event.target.files?.[0] && onImport(event.target.files[0])} /></article>
         <article><FileText size={24} /><h3>Ekspor Excel</h3><p>Unduh workbook siap dibuka di Microsoft Excel atau Google Sheets.</p><button className="primary-button" onClick={onExportExcel}>Unduh .xlsx</button></article>
         <article><Database size={24} /><h3>Backup lengkap</h3><p>Simpan santri, mata pelajaran, identitas lembaga, serta desain ijazah dalam satu berkas.</p><button className="primary-button" onClick={onBackup}>Unduh backup</button></article>

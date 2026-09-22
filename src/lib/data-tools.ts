@@ -34,8 +34,67 @@ export function parseBackup(text: string): AppBackup {
 }
 
 function stringValue(value: unknown) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
   if (value && typeof value === "object" && "text" in value) return String((value as { text: string }).text);
   return String(value ?? "").trim();
+}
+
+export async function downloadImportTemplate(subjects: Subject[]) {
+  const ExcelJS = await import("exceljs");
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "E-Syahadah";
+  workbook.created = new Date();
+
+  const sheet = workbook.addWorksheet("Template Import", { views: [{ state: "frozen", ySplit: 1, xSplit: 2 }] });
+  const identityHeaders = ["Nomor Syahadah", "Nama", "Nama Arab", "NISN", "Jenjang", "Tempat Lahir", "Tanggal Lahir", "Wali"];
+  const scoreHeaders = Array.from({ length: 11 }, (_, index) => `Nilai ${index + 1}`);
+  sheet.addRow([...identityHeaders, ...scoreHeaders]);
+  sheet.columns = [
+    { key: "id", width: 22 }, { key: "name", width: 27 }, { key: "arabicName", width: 25 }, { key: "nisn", width: 17 },
+    { key: "level", width: 12 }, { key: "birthPlace", width: 18 }, { key: "birthDate", width: 16 }, { key: "guardian", width: 23 },
+    ...scoreHeaders.map((_, index) => ({ key: `score${index + 1}`, width: 11 })),
+  ];
+  sheet.getRow(1).height = 30;
+  sheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  sheet.getRow(1).alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+  sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF6652C8" } };
+  sheet.autoFilter = { from: "A1", to: "S101" };
+  for (let row = 2; row <= 101; row += 1) {
+    sheet.getCell(`A${row}`).numFmt = "@";
+    sheet.getCell(`D${row}`).numFmt = "@";
+    sheet.getCell(`E${row}`).dataValidation = { type: "list", allowBlank: true, formulae: ['"Ula,Wustha,Ulya"'], showErrorMessage: true, errorTitle: "Jenjang tidak valid", error: "Pilih Ula, Wustha, atau Ulya." };
+    sheet.getCell(`G${row}`).numFmt = "yyyy-mm-dd";
+    for (let column = 9; column <= 19; column += 1) {
+      const cell = sheet.getCell(row, column);
+      cell.numFmt = "0";
+      cell.dataValidation = { type: "whole", operator: "between", allowBlank: true, formulae: [0, 100], showErrorMessage: true, errorTitle: "Nilai tidak valid", error: "Nilai harus berupa angka 0 sampai 100." };
+    }
+  }
+  sheet.eachRow((row, rowNumber) => {
+    if (rowNumber > 1) row.alignment = { vertical: "middle" };
+  });
+
+  const guide = workbook.addWorksheet("Petunjuk");
+  guide.columns = [{ width: 24 }, { width: 58 }];
+  guide.addRows([
+    ["TEMPLATE IMPORT E-SYAHADAH", "Isi data pada sheet Template Import, lalu unggah melalui menu Data & Backup."],
+    ["Kolom wajib", "Nomor Syahadah dan Nama."],
+    ["Nomor Syahadah / NISN", "Disimpan sebagai teks agar angka nol di depan tidak hilang."],
+    ["Tanggal lahir", "Gunakan format tanggal yyyy-mm-dd, contoh 2006-04-12."],
+    ["Jenjang", "Pilih Ula, Wustha, atau Ulya dari daftar."],
+    ["Nilai", "Masukkan angka 0 sampai 100. Nilai kosong dianggap 0."],
+    ...Array.from({ length: 11 }, (_, index) => [`Nilai ${index + 1}`, subjects.find((subject) => subject.order === index)?.name || `Mata Pelajaran ${index + 1}`]),
+    ["Catatan", "Jangan mengubah nama header pada baris pertama."],
+  ]);
+  guide.getRow(1).height = 34;
+  guide.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" }, size: 14 };
+  guide.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF6652C8" } };
+  guide.getColumn(1).font = { bold: true };
+  guide.eachRow((row) => { row.alignment = { vertical: "middle", wrapText: true }; });
+  guide.views = [{ state: "frozen", ySplit: 1 }];
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  downloadBlob(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), "template-import-e-syahadah.xlsx");
 }
 
 export async function importStudentsExcel(file: File): Promise<Student[]> {
