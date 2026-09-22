@@ -1,14 +1,18 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- data URLs and printable certificate assets must remain native images for canvas/PDF export */
 
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Award, Bell, BookOpen, CalendarDays, Check, ClipboardList, Eye, FileCheck2, FileText, GraduationCap, ImagePlus, LayoutDashboard, LockKeyhole, Menu, MessageCircle, Moon, MoreHorizontal, Move, Pencil, Plus, Printer, RotateCcw, Save, Search, Settings, SlidersHorizontal, Sparkles, Sun, Trash2, UserPlus, Users, X } from "lucide-react";
+import Link from "next/link";
+import { Archive, Award, Bell, BookOpen, CalendarDays, Check, ClipboardList, Database, Download, Eye, FileCheck2, FileText, GraduationCap, History, ImagePlus, LayoutDashboard, LockKeyhole, Menu, MessageCircle, Moon, MoreHorizontal, Move, Pencil, Plus, Printer, QrCode, RotateCcw, Save, Search, Settings, ShieldCheck, SlidersHorizontal, Sparkles, Sun, Trash2, Upload, UserPlus, Users, X } from "lucide-react";
 import { isFirebaseConfigured, observeAdmin, signInAdmin, signOutAdmin } from "@/lib/firebase";
-import { deleteStudent, saveStudent, subscribeToStudents, type Student } from "@/lib/students";
+import { deleteStudent, saveStudent, saveStudents, subscribeToStudents, type Student } from "@/lib/students";
 import { defaultSubjects, saveSubjects, subscribeToSubjects, type Subject } from "@/lib/subjects";
 import { defaultSettings, saveSettings, subscribeToSettings, type InstitutionSettings } from "@/lib/settings";
 import { averageScore, certificateValidationIssues, getCertificateCandidates, getStudentStatus } from "@/lib/academy";
-import { appendAuditEntry, buildCsv, buildStudentsCsv } from "@/lib/admin";
+import { appendAuditEntry, buildCsv, buildStudentsCsv, loadAuditEntries } from "@/lib/admin";
 import { defaultTemplate, saveTemplate, subscribeToTemplate, templateLabels, type CertificateTemplate, type TemplateElementId } from "@/lib/template";
+import { createBackup, downloadBlob, exportStudentsExcel, importStudentsExcel, parseBackup } from "@/lib/data-tools";
+import { createCertificateNumber, createVerificationCode, publishVerification, readPublicVerification, type PublicVerification } from "@/lib/verification";
 
 const initialScores = [82, 88, 76, 91, 84, 79, 86, 90, 81, 87, 85];
 const demoStudents: Student[] = [
@@ -168,15 +172,19 @@ export default function Home() {
   const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [adminError, setAdminError] = useState("");
   const [toast, setToast] = useState("");
+  const [publicCode, setPublicCode] = useState("");
+  const [publicVerification, setPublicVerification] = useState<PublicVerification | null | undefined>(undefined);
+  const [installPrompt, setInstallPrompt] = useState<{ prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentStudent = students.find((student) => student.id === selectedId) ?? students[0] ?? demoStudents[0];
   const average = averageScore(scores);
-  const passed = getStudentStatus(scores) === "Lulus";
+  const effectiveAcademicYear = institution.activeAcademicYear || academicYear;
+  const passed = getStudentStatus(scores, institution.passingGrade) === "Lulus";
   const filteredStudents = useMemo(() => students.filter((student) => (student.name.toLowerCase().includes(search.toLowerCase()) || student.id.toLowerCase().includes(search.toLowerCase())) && (levelFilter === "Semua" || student.level === levelFilter) && (statusFilter === "Semua" || student.status === statusFilter)), [levelFilter, search, statusFilter, students]);
-  const passedCount = students.filter((student) => getStudentStatus(student.scores ?? []) === "Lulus").length;
+  const passedCount = students.filter((student) => getStudentStatus(student.scores ?? [], institution.passingGrade) === "Lulus").length;
   const issuedCount = students.filter((student) => student.certificateStatus === "Terbit").length;
-  const pendingCount = getCertificateCandidates(students).length;
+  const pendingCount = getCertificateCandidates(students, institution.passingGrade).length;
   const progress = passedCount ? Math.round((issuedCount / passedCount) * 100) : 0;
 
   function notify(message: string) {
@@ -234,6 +242,8 @@ export default function Home() {
       birthDate: "",
       guardian: "",
       certificateStatus: "Belum",
+      academicYear: effectiveAcademicYear,
+      archiveStatus: "Aktif",
     };
   }
   function openAddStudent() {
@@ -254,12 +264,12 @@ export default function Home() {
       name: studentForm.name.trim(),
       initials: getInitials(studentForm.name),
       score: preparedScore,
-      status: getStudentStatus(studentForm.scores) as Student["status"],
+      status: getStudentStatus(studentForm.scores, institution.passingGrade) as Student["status"],
       certificateStatus: "Belum" as const,
     };
     try {
       setSyncState("saving");
-      if (isFirebaseConfigured) await saveStudent(prepared, academicYear);
+      if (isFirebaseConfigured) await saveStudent(prepared, effectiveAcademicYear);
       setStudents((list) => (isNewStudent ? [...list, prepared] : list.map((item) => (item.id === prepared.id ? prepared : item))));
       setStudentForm(null);
       setSyncState(isFirebaseConfigured ? "saved" : "demo");
@@ -297,7 +307,7 @@ export default function Home() {
     };
     try {
       setSyncState("saving");
-      if (isFirebaseConfigured) await saveStudent(updated, academicYear);
+      if (isFirebaseConfigured) await saveStudent(updated, effectiveAcademicYear);
       setStudents((list) => list.map((student) => (student.id === updated.id ? updated : student)));
       setSyncState(isFirebaseConfigured ? "saved" : "demo");
       notify("Nilai berhasil disimpan.");
@@ -309,11 +319,22 @@ export default function Home() {
   }
   async function issueCertificate(student: Student) {
     if (student.certificateStatus !== "Validasi") return notify("Validasi data dan nilai terlebih dahulu.");
-    const issues = certificateValidationIssues(student);
+    const issues = certificateValidationIssues(student, institution.passingGrade);
     if (issues.length) return notify(`Lengkapi: ${issues.join(", ")}.`);
-    const updated = { ...student, certificateStatus: "Terbit" as const };
+    const updated = {
+      ...student,
+      certificateStatus: "Terbit" as const,
+      certificateNumber: student.certificateNumber || createCertificateNumber(issuedCount + 1, effectiveAcademicYear),
+      verificationCode: student.verificationCode || createVerificationCode(),
+      issuedAt: student.issuedAt || new Date().toISOString(),
+      academicYear: student.academicYear || effectiveAcademicYear,
+      archiveStatus: "Lulus" as const,
+    };
     try {
-      if (isFirebaseConfigured) await saveStudent(updated, academicYear);
+      if (isFirebaseConfigured) {
+        await saveStudent(updated, effectiveAcademicYear);
+        await publishVerification(updated, institution, effectiveAcademicYear);
+      }
       setStudents((list) => list.map((item) => (item.id === student.id ? updated : item)));
       chooseStudent(updated);
       setShowPreview(true);
@@ -325,17 +346,38 @@ export default function Home() {
     }
   }
   async function validateCertificate(student: Student) {
-    const issues = certificateValidationIssues(student);
+    const issues = certificateValidationIssues(student, institution.passingGrade);
     if (issues.length) return notify(`Lengkapi: ${issues.join(", ")}.`);
     const updated = { ...student, certificateStatus: "Validasi" as const };
     try {
-      if (isFirebaseConfigured) await saveStudent(updated, academicYear);
+      if (isFirebaseConfigured) await saveStudent(updated, effectiveAcademicYear);
       setStudents((list) => list.map((item) => (item.id === student.id ? updated : item)));
       logAudit("certificate-validated", `Memvalidasi ${student.name}`);
       notify("Data dan nilai tervalidasi. Ijazah siap diterbitkan.");
     } catch (error) {
       console.error(error);
       notify("Validasi gagal disimpan.");
+    }
+  }
+  async function activateVerification(student: Student) {
+    const updated = {
+      ...student,
+      certificateNumber: student.certificateNumber || createCertificateNumber(students.findIndex((item) => item.id === student.id) + 1, student.academicYear || effectiveAcademicYear),
+      verificationCode: student.verificationCode || createVerificationCode(),
+      issuedAt: student.issuedAt || new Date().toISOString(),
+    };
+    try {
+      if (isFirebaseConfigured) {
+        await saveStudent(updated, effectiveAcademicYear);
+        await publishVerification(updated, institution, student.academicYear || effectiveAcademicYear);
+      }
+      setStudents((list) => list.map((item) => item.id === student.id ? updated : item));
+      chooseStudent(updated);
+      setShowPreview(true);
+      logAudit("verification-published", `Mengaktifkan QR verifikasi ${student.name}`);
+      notify("QR verifikasi ijazah berhasil diaktifkan.");
+    } catch {
+      notify("QR verifikasi gagal diaktifkan.");
     }
   }
   async function persistSubjects() {
@@ -371,6 +413,67 @@ export default function Home() {
     }
   }
 
+  async function handleExcelImport(file: File) {
+    try {
+      const imported = await importStudentsExcel(file);
+      const normalized = imported.map((student) => ({
+        ...student,
+        academicYear: effectiveAcademicYear,
+        status: getStudentStatus(student.scores, institution.passingGrade),
+      }));
+      if (isFirebaseConfigured) await saveStudents(normalized, effectiveAcademicYear);
+      setStudents((current) => {
+        const merged = new Map(current.map((student) => [student.id, student]));
+        normalized.forEach((student) => merged.set(student.id, student));
+        return [...merged.values()];
+      });
+      logAudit("excel-import", `Mengimpor ${normalized.length} data santri dari Excel`);
+      notify(`${normalized.length} santri berhasil diimpor.`);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Impor Excel gagal.");
+    }
+  }
+
+  async function handleBackupRestore(file: File) {
+    try {
+      const backup = parseBackup(await file.text());
+      if (!window.confirm(`Pulihkan ${backup.students.length} santri dan seluruh pengaturan dari backup?`)) return;
+      if (isFirebaseConfigured) {
+        await saveStudents(backup.students, backup.institution.activeAcademicYear || effectiveAcademicYear);
+        await saveSubjects(backup.subjects);
+        await saveSettings(backup.institution);
+        await saveTemplate(backup.template);
+      }
+      setStudents(backup.students);
+      setSubjects(backup.subjects);
+      setInstitution(backup.institution);
+      setSettingsForm(backup.institution);
+      setTemplate(backup.template);
+      logAudit("backup-restore", `Memulihkan backup ${backup.exportedAt}`);
+      notify("Backup berhasil dipulihkan.");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Pemulihan backup gagal.");
+    }
+  }
+
+  function handleBackupDownload() {
+    const backup = createBackup({ students, subjects, institution, template });
+    downloadBlob(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }), `e-syahadah-backup-${new Date().toISOString().slice(0, 10)}.json`);
+    logAudit("backup-download", "Mengunduh backup lengkap aplikasi");
+    notify("Backup lengkap berhasil diunduh.");
+  }
+
+  async function handleAcademicUpdate(updated: Student[]) {
+    try {
+      if (isFirebaseConfigured) await saveStudents(updated, effectiveAcademicYear);
+      setStudents(updated);
+      logAudit("academic-year-update", "Memperbarui kenaikan kelas dan arsip santri");
+      notify("Data tahun ajaran berhasil diperbarui.");
+    } catch {
+      notify("Perubahan tahun ajaran gagal disimpan.");
+    }
+  }
+
   useEffect(() => {
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -381,6 +484,20 @@ export default function Home() {
     }
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
+  }, []);
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("verify")?.toUpperCase() || "";
+    queueMicrotask(() => {
+      setPublicCode(code);
+      if (code) readPublicVerification(code).then(setPublicVerification).catch(() => setPublicVerification(null));
+    });
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    const onInstall = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> });
+    };
+    window.addEventListener("beforeinstallprompt", onInstall);
+    return () => window.removeEventListener("beforeinstallprompt", onInstall);
   }, []);
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -476,6 +593,8 @@ export default function Home() {
     notify("Data santri berhasil diekspor.");
   };
 
+  if (publicCode) return <PublicVerificationPage code={publicCode} value={publicVerification} />;
+
   if (!adminAuthenticated) {
     return (
       <main className="app-shell login-shell light">
@@ -568,10 +687,35 @@ export default function Home() {
             <Settings size={18} />
             <span>Pengaturan</span>
           </button>
+          <button className={`nav-item ${activeNav === "Tahun Ajaran" ? "active" : ""}`} onClick={() => navigate("Tahun Ajaran")}>
+            <Archive size={18} />
+            <span>Tahun Ajaran</span>
+          </button>
+          <button className={`nav-item ${activeNav === "Data & Backup" ? "active" : ""}`} onClick={() => navigate("Data & Backup")}>
+            <Database size={18} />
+            <span>Data & Backup</span>
+          </button>
+          <button className={`nav-item ${activeNav === "Riwayat" ? "active" : ""}`} onClick={() => navigate("Riwayat")}>
+            <History size={18} />
+            <span>Riwayat</span>
+          </button>
           <button className="nav-item" onClick={exportStudents}>
             <FileText size={18} />
             <span>Export CSV</span>
           </button>
+          {installPrompt && (
+            <button
+              className="nav-item"
+              onClick={async () => {
+                await installPrompt.prompt();
+                const choice = await installPrompt.userChoice;
+                if (choice.outcome === "accepted") setInstallPrompt(null);
+              }}
+            >
+              <Download size={18} />
+              <span>Pasang Aplikasi</span>
+            </button>
+          )}
           <button className="nav-item" onClick={handleAdminLogout}>
             <X size={18} />
             <span>Keluar Admin</span>
@@ -605,7 +749,7 @@ export default function Home() {
           <div className="topbar-actions">
             <div className="year-select">
               <span className="status-dot" />
-              Tahun Ajaran {academicYear}
+              Tahun Ajaran {effectiveAcademicYear}
             </div>
             <button className="icon-button theme-toggle" aria-label={darkMode ? "Gunakan mode terang" : "Gunakan mode gelap"} title={darkMode ? "Mode terang" : "Mode gelap"} onClick={toggleTheme}>
               {darkMode ? <Sun size={17} /> : <Moon size={17} />}
@@ -633,7 +777,7 @@ export default function Home() {
           {activeNav === "Data Santri" && <StudentsView students={filteredStudents} search={search} setSearch={setSearch} showFilters={showFilters} setShowFilters={setShowFilters} levelFilter={levelFilter} setLevelFilter={setLevelFilter} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onAdd={openAddStudent} onEdit={openEditStudent} onDelete={removeStudent} />}
           {activeNav === "E-Raport" &&
             (students.length ? (
-              <GradesView students={students} current={currentStudent} subjects={subjects} scores={scores} setScores={setScores} average={average} passed={passed} choose={chooseStudent} saveGrades={saveGrades} onPreview={() => setShowPreview(true)} syncState={syncState} />
+              <GradesView students={students} current={currentStudent} subjects={subjects} scores={scores} setScores={setScores} average={average} passed={passed} passingGrade={institution.passingGrade} choose={chooseStudent} saveGrades={saveGrades} onPreview={() => setShowPreview(true)} syncState={syncState} />
             ) : (
               <section className="panel full-panel">
                 <EmptyState title="Belum ada santri" text="Tambahkan santri di menu Data Santri sebelum mengisi nilai." />
@@ -662,13 +806,18 @@ export default function Home() {
                 chooseStudent(student);
                 setShowPreview(true);
               }}
+              passingGrade={institution.passingGrade}
               onValidate={validateCertificate}
               onIssue={issueCertificate}
+              onActivate={activateVerification}
             />
           )}
           {activeNav === "Mata Pelajaran" && <SubjectsView subjects={subjects} setSubjects={setSubjects} onSave={persistSubjects} />}
           {activeNav === "Desain Ijazah" && <TemplateDesigner template={template} setTemplate={setTemplate} student={currentStudent} scores={scores} subjects={subjects} institution={institution} onSave={persistTemplate} notify={notify} />}
           {activeNav === "Pengaturan" && <SettingsView value={settingsForm} setValue={setSettingsForm} onSave={persistSettings} />}
+          {activeNav === "Tahun Ajaran" && <AcademicYearView students={students} academicYear={effectiveAcademicYear} onSave={handleAcademicUpdate} />}
+          {activeNav === "Data & Backup" && <DataToolsView students={students} subjects={subjects} academicYear={effectiveAcademicYear} onImport={handleExcelImport} onExportExcel={() => exportStudentsExcel(students, subjects, `e-syahadah-${effectiveAcademicYear.replace("/", "-")}.xlsx`)} onBackup={handleBackupDownload} onRestore={handleBackupRestore} />}
+          {activeNav === "Riwayat" && <AuditHistoryView />}
         </div>
       </section>
       {studentForm && <StudentModal value={studentForm} setValue={setStudentForm} isNew={isNewStudent} onClose={() => setStudentForm(null)} onSubmit={submitStudent} />}
@@ -693,6 +842,9 @@ function PageHeading({ active, syncState, adminName, onAdd, onIssue }: { active:
     "Mata Pelajaran": ["Mata pelajaran", "Atur nama dan status pelajaran pada transkrip."],
     "Desain Ijazah": ["Desain ijazah", "Edit teks, geser elemen, unggah logo, dan atur watermark."],
     Pengaturan: ["Pengaturan pesantren", "Sesuaikan identitas yang tampil pada dokumen ijazah."],
+    "Tahun Ajaran": ["Tahun ajaran & arsip", "Kelola kenaikan jenjang, kelulusan, dan arsip santri."],
+    "Data & Backup": ["Data & backup", "Impor Excel, ekspor workbook, dan lindungi seluruh data aplikasi."],
+    Riwayat: ["Riwayat perubahan", "Audit tindakan admin tersimpan khusus di perangkat ini."],
   };
   return (
     <div className="page-heading">
@@ -1035,7 +1187,7 @@ function StudentsView(props: { students: Student[]; search: string; setSearch: (
   );
 }
 
-function GradesView(props: { students: Student[]; current: Student; subjects: Subject[]; scores: number[]; setScores: (v: number[]) => void; average: number; passed: boolean; choose: (s: Student) => void; saveGrades: () => void; onPreview: () => void; syncState: string }) {
+function GradesView(props: { students: Student[]; current: Student; subjects: Subject[]; scores: number[]; setScores: (v: number[]) => void; average: number; passed: boolean; passingGrade: number; choose: (s: Student) => void; saveGrades: () => void; onPreview: () => void; syncState: string }) {
   const [level, setLevel] = useState("Semua");
   const [semester, setSemester] = useState("Semester Genap");
   const visibleStudents = props.students.filter((student) => level === "Semua" || student.level === level);
@@ -1116,7 +1268,7 @@ function GradesView(props: { students: Student[]; current: Student; subjects: Su
           ))}
           {!visibleStudents.length && <EmptyState title="Tidak ada santri" text="Ubah filter jenjang di bagian atas." />}
         </section>
-        <ReportGradePanel current={props.current} subjects={props.subjects} scores={props.scores} setScores={props.setScores} average={props.average} passed={props.passed} completion={completion} semester={semester} onSave={props.saveGrades} onPreview={props.onPreview} />
+        <ReportGradePanel current={props.current} subjects={props.subjects} scores={props.scores} setScores={props.setScores} average={props.average} passed={props.passed} passingGrade={props.passingGrade} completion={completion} semester={semester} onSave={props.saveGrades} onPreview={props.onPreview} />
       </div>
     </div>
   );
@@ -1192,7 +1344,7 @@ function ClassRecap({ students, subjects, onExport }: { students: Student[]; sub
   );
 }
 
-function ReportGradePanel({ current, subjects, scores, setScores, average, passed, completion, semester, onSave, onPreview }: { current: Student; subjects: Subject[]; scores: number[]; setScores: (v: number[]) => void; average: number; passed: boolean; completion: number; semester: string; onSave: () => void; onPreview: () => void }) {
+function ReportGradePanel({ current, subjects, scores, setScores, average, passed, passingGrade, completion, semester, onSave, onPreview }: { current: Student; subjects: Subject[]; scores: number[]; setScores: (v: number[]) => void; average: number; passed: boolean; passingGrade: number; completion: number; semester: string; onSave: () => void; onPreview: () => void }) {
   const activeSubjects = subjects.filter((subject) => subject.active);
   return (
     <section className="panel report-editor">
@@ -1253,7 +1405,7 @@ function ReportGradePanel({ current, subjects, scores, setScores, average, passe
       <footer className="report-actions">
         <div>
           <span>Pastikan seluruh nilai sudah benar.</span>
-          <small>Nilai minimum kelulusan adalah 70.</small>
+          <small>Nilai minimum kelulusan adalah {passingGrade}.</small>
         </div>
         <button className="ghost-action" onClick={onPreview}>
           <Eye size={15} />
@@ -1268,13 +1420,13 @@ function ReportGradePanel({ current, subjects, scores, setScores, average, passe
   );
 }
 
-function CertificatesView({ students, onPreview, onValidate, onIssue }: { students: Student[]; onPreview: (s: Student) => void; onValidate: (s: Student) => void; onIssue: (s: Student) => void }) {
+function CertificatesView({ students, passingGrade, onPreview, onValidate, onIssue, onActivate }: { students: Student[]; passingGrade: number; onPreview: (s: Student) => void; onValidate: (s: Student) => void; onIssue: (s: Student) => void; onActivate: (s: Student) => void }) {
   return (
     <section className="panel full-panel">
       <PanelHeader title="Daftar ijazah" subtitle="Alur: lengkapi data dan nilai → validasi → terbitkan → cetak PDF." />
       <div className="certificate-grid">
         {students.map((student) => {
-          const issues = certificateValidationIssues(student);
+          const issues = certificateValidationIssues(student, passingGrade);
           const state = student.certificateStatus ?? "Belum";
           return (
             <article className="certificate-card" key={student.id}>
@@ -1288,9 +1440,15 @@ function CertificatesView({ students, onPreview, onValidate, onIssue }: { studen
                 </span>
                 <span className={`issue-status ${state === "Terbit" ? "issued" : ""}`}>{state === "Terbit" ? "Sudah terbit" : state === "Validasi" ? "Tervalidasi" : "Draf"}</span>
               </div>
+              {student.certificateNumber && <small className="certificate-number">{student.certificateNumber}</small>}
               {issues.length > 0 && <small className="validation-note">Perlu dilengkapi: {issues.join(", ")}</small>}
               <div className="certificate-card-actions">
-                {state === "Terbit" ? (
+                {state === "Terbit" && !student.verificationCode ? (
+                  <button className="primary-button compact" onClick={() => onActivate(student)}>
+                    <QrCode size={15} />
+                    Aktifkan QR
+                  </button>
+                ) : state === "Terbit" ? (
                   <button className="ghost-action" onClick={() => onPreview(student)}>
                     <Eye size={15} />
                     Pratinjau / PDF
@@ -1352,12 +1510,19 @@ function SubjectsView({ subjects, setSubjects, onSave }: { subjects: Subject[]; 
 }
 
 function SettingsView({ value, setValue, onSave }: { value: InstitutionSettings; setValue: (v: InstitutionSettings) => void; onSave: (e: FormEvent) => void }) {
-  const field = (key: keyof InstitutionSettings, label: string, dir?: "rtl") => (
+  const field = (key: "name" | "arabicName" | "foundation" | "arabicFoundation" | "city" | "principal" | "address" | "arabicAddress" | "activeAcademicYear", label: string, dir?: "rtl") => (
     <label className="form-field">
       <span>{label}</span>
       <input dir={dir} value={value[key]} onChange={(e) => setValue({ ...value, [key]: e.target.value })} required />
     </label>
   );
+  function uploadAsset(file: File | undefined, key: "signatureDataUrl" | "stampDataUrl") {
+    if (!file) return;
+    if (!file.type.startsWith("image/") || file.size > 300_000) return window.alert("Gunakan gambar PNG/JPG maksimal 300 KB.");
+    const reader = new FileReader();
+    reader.onload = () => setValue({ ...value, [key]: String(reader.result) });
+    reader.readAsDataURL(file);
+  }
   return (
     <section className="panel settings-panel">
       <PanelHeader title="Identitas lembaga" subtitle="Informasi ini otomatis tampil pada ijazah yang diterbitkan." />
@@ -1370,12 +1535,86 @@ function SettingsView({ value, setValue, onSave }: { value: InstitutionSettings;
         {field("city", "Kota penerbitan")}
         {field("address", "Alamat lengkap")}
         {field("arabicAddress", "Alamat singkat (Arab)", "rtl")}
+        {field("activeAcademicYear", "Tahun ajaran aktif (contoh: 2026/2027)")}
+        <label className="form-field">
+          <span>Nilai minimum kelulusan</span>
+          <input type="number" min="1" max="100" value={value.passingGrade} onChange={(event) => setValue({ ...value, passingGrade: Math.max(1, Math.min(100, Number(event.target.value))) })} required />
+        </label>
+        <label className="form-field asset-upload">
+          <span>Tanda tangan kepala pesantren</span>
+          <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => uploadAsset(event.target.files?.[0], "signatureDataUrl")} />
+          {value.signatureDataUrl && <img src={value.signatureDataUrl} alt="Pratinjau tanda tangan" />}
+        </label>
+        <label className="form-field asset-upload">
+          <span>Stempel digital</span>
+          <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => uploadAsset(event.target.files?.[0], "stampDataUrl")} />
+          {value.stampDataUrl && <img src={value.stampDataUrl} alt="Pratinjau stempel" />}
+        </label>
+        <div className="admin-access-card">
+          <ShieldCheck size={20} />
+          <div><strong>Administrator utama</strong><span>baikganteng88@gmail.com · akses penuh</span><small>Pengguna lain tetap diblokir sesuai pengaturan keamanan Anda.</small></div>
+        </div>
         <button className="primary-button" type="submit">
           <Save size={16} />
           Simpan Pengaturan
         </button>
       </form>
     </section>
+  );
+}
+
+function DataToolsView({ students, subjects, academicYear, onImport, onExportExcel, onBackup, onRestore }: { students: Student[]; subjects: Subject[]; academicYear: string; onImport: (file: File) => void; onExportExcel: () => void; onBackup: () => void; onRestore: (file: File) => void }) {
+  const importRef = useRef<HTMLInputElement>(null);
+  const restoreRef = useRef<HTMLInputElement>(null);
+  return (
+    <section className="panel settings-panel">
+      <PanelHeader title="Pusat data" subtitle={`${students.length} santri · ${subjects.length} mata pelajaran · tahun ${academicYear}`} />
+      <div className="data-tools-grid">
+        <article><Upload size={24} /><h3>Impor Excel</h3><p>Tambah atau perbarui santri berdasarkan Nomor Syahadah. Mendukung identitas dan 11 kolom nilai.</p><button className="primary-button" onClick={() => importRef.current?.click()}>Pilih .xlsx</button><input ref={importRef} hidden type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(event) => event.target.files?.[0] && onImport(event.target.files[0])} /></article>
+        <article><FileText size={24} /><h3>Ekspor Excel</h3><p>Unduh workbook siap dibuka di Microsoft Excel atau Google Sheets.</p><button className="primary-button" onClick={onExportExcel}>Unduh .xlsx</button></article>
+        <article><Database size={24} /><h3>Backup lengkap</h3><p>Simpan santri, mata pelajaran, identitas lembaga, serta desain ijazah dalam satu berkas.</p><button className="primary-button" onClick={onBackup}>Unduh backup</button></article>
+        <article><RotateCcw size={24} /><h3>Pulihkan backup</h3><p>Memulihkan berkas backup E-Syahadah setelah konfirmasi administrator.</p><button className="ghost-action" onClick={() => restoreRef.current?.click()}>Pilih backup</button><input ref={restoreRef} hidden type="file" accept="application/json,.json" onChange={(event) => event.target.files?.[0] && onRestore(event.target.files[0])} /></article>
+      </div>
+    </section>
+  );
+}
+
+function AcademicYearView({ students, academicYear, onSave }: { students: Student[]; academicYear: string; onSave: (students: Student[]) => void }) {
+  const [draft, setDraft] = useState(students);
+  const promote = (student: Student) => {
+    const nextLevel = student.level === "Ula" ? "Wustha" : student.level === "Wustha" ? "Ulya" : student.level;
+    const graduating = student.level === "Ulya";
+    setDraft((list) => list.map((item) => item.id === student.id ? { ...item, level: nextLevel, academicYear, archiveStatus: graduating ? "Lulus" : "Aktif" } : item));
+  };
+  return (
+    <section className="panel settings-panel">
+      <PanelHeader title={`Kelola tahun ajaran ${academicYear}`} subtitle="Naikkan jenjang atau arsipkan santri tanpa menghapus riwayat ijazah." action={<button className="primary-button compact" onClick={() => onSave(draft)}><Save size={15} />Simpan semua</button>} />
+      <div className="archive-list">
+        {draft.map((student) => <div className="archive-row" key={student.id}><StudentIdentity student={student} /><span>{student.academicYear || academicYear}</span><span>{student.level}</span><span className={`issue-status ${student.archiveStatus === "Lulus" ? "issued" : ""}`}>{student.archiveStatus || "Aktif"}</span><button className="ghost-action" onClick={() => promote(student)}>{student.level === "Ulya" ? "Tandai lulus" : "Naik jenjang"}</button><button className="icon-button" aria-label={`Arsipkan ${student.name}`} onClick={() => setDraft((list) => list.map((item) => item.id === student.id ? { ...item, archiveStatus: "Arsip" } : item))}><Archive size={15} /></button></div>)}
+      </div>
+    </section>
+  );
+}
+
+function AuditHistoryView() {
+  const [entries, setEntries] = useState(() => loadAuditEntries("e-syahadah-audit"));
+  return (
+    <section className="panel settings-panel">
+      <PanelHeader title="Riwayat admin" subtitle="Riwayat hanya tampil di halaman khusus ini dan tersimpan lokal di perangkat." action={<button className="ghost-action" onClick={() => { window.localStorage.removeItem("e-syahadah-audit"); setEntries([]); }}><Trash2 size={14} />Bersihkan</button>} />
+      <div className="audit-list">{entries.map((entry) => <article key={entry.id}><History size={16} /><div><strong>{entry.message}</strong><span>{entry.action} · {new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(new Date(entry.createdAt))}</span></div></article>)}{!entries.length && <EmptyState title="Belum ada riwayat" text="Tindakan admin berikutnya akan dicatat di sini." />}</div>
+    </section>
+  );
+}
+
+function PublicVerificationPage({ code, value }: { code: string; value: PublicVerification | null | undefined }) {
+  return (
+    <main className="verification-shell">
+      <section className="verification-card">
+        <div className="verification-brand"><Sparkles size={22} /><strong>E-SYAHADAH</strong></div>
+        {value === undefined ? <><QrCode size={42} /><h1>Memeriksa ijazah…</h1><p>Mohon tunggu saat kode diverifikasi ke Firebase.</p></> : value ? <><div className="verification-valid"><ShieldCheck size={34} />Ijazah sah dan terdaftar</div><h1>{value.studentName}</h1><dl><div><dt>Nomor ijazah</dt><dd>{value.certificateNumber}</dd></div><div><dt>NISN</dt><dd>{value.nisn}</dd></div><div><dt>Jenjang</dt><dd>{value.level}</dd></div><div><dt>Nilai akhir</dt><dd>{value.finalScore}</dd></div><div><dt>Tahun ajaran</dt><dd>{value.academicYear}</dd></div><div><dt>Lembaga</dt><dd>{value.institutionName}</dd></div></dl></> : <><X size={42} /><h1>Ijazah tidak ditemukan</h1><p>Kode <b>{code}</b> tidak valid atau belum diterbitkan.</p></>}
+        <Link className="ghost-action verification-home" href="/">Kembali ke E-Syahadah</Link>
+      </section>
+    </main>
   );
 }
 
@@ -1746,9 +1985,9 @@ function TemplateBlock({ id, template, editable, selected, onSelect, onMove, chi
   );
 }
 
-function CertificatePages({ student, scores, subjects, institution, template, page, editable, selected, onSelect, onMove }: { student: Student; scores: number[]; subjects: Subject[]; institution: InstitutionSettings; template: CertificateTemplate; page?: 1 | 2; editable?: boolean; selected?: TemplateElementId; onSelect?: (id: TemplateElementId) => void; onMove?: (id: TemplateElementId, x: number, y: number) => void }) {
+function CertificatePages({ student, scores, subjects, institution, template, qrDataUrl, page, editable, selected, onSelect, onMove }: { student: Student; scores: number[]; subjects: Subject[]; institution: InstitutionSettings; template: CertificateTemplate; qrDataUrl?: string; page?: 1 | 2; editable?: boolean; selected?: TemplateElementId; onSelect?: (id: TemplateElementId) => void; onMove?: (id: TemplateElementId, x: number, y: number) => void }) {
   const average = Math.round(scores.reduce((sum, score) => sum + score, 0) / Math.max(scores.length, 1));
-  const passed = average >= 70;
+  const passed = average >= institution.passingGrade;
   const birthDate = student.birthDate
     ? new Intl.DateTimeFormat("ar-EG", {
         day: "numeric",
@@ -1777,7 +2016,7 @@ function CertificatePages({ student, scores, subjects, institution, template, pa
     yayasan_arab: institution.arabicFoundation,
     alamat_arab: institution.arabicAddress,
     kepala_sekolah: institution.principal,
-    tahun_ajaran: academicYear,
+    tahun_ajaran: institution.activeAcademicYear || student.academicYear || academicYear,
     tanggal_cetak: `${numberToArabic(now.getDate())} / ${numberToArabic(now.getMonth() + 1)} / ${numberToArabic(now.getFullYear())} م`,
   };
   const text = (id: TemplateElementId) => fillTemplate(template.texts[id] ?? defaultTemplate.texts[id] ?? "", variables);
@@ -1871,8 +2110,9 @@ function CertificatePages({ student, scores, subjects, institution, template, pa
             <PhotoBox content={text("coverPhoto")} />
           </TemplateBlock>
           <TemplateBlock id="coverSignature" {...blockProps}>
-            <EditableSignature content={text("coverSignature")} />
+            <EditableSignature content={text("coverSignature")} signature={institution.signatureDataUrl} stamp={institution.stampDataUrl} />
           </TemplateBlock>
+          {qrDataUrl && student.certificateNumber && <div className="certificate-qr" dir="ltr"><img src={qrDataUrl} alt="QR verifikasi ijazah" /><span>{student.certificateNumber}</span></div>}
         </div>
       )}
       {(!page || page === 2) && (
@@ -1931,7 +2171,7 @@ function CertificatePages({ student, scores, subjects, institution, template, pa
             </div>
           </TemplateBlock>
           <TemplateBlock id="transcriptSignature" {...blockProps}>
-            <EditableSignature content={text("transcriptSignature")} transcript />
+            <EditableSignature content={text("transcriptSignature")} transcript signature={institution.signatureDataUrl} stamp={institution.stampDataUrl} />
           </TemplateBlock>
         </div>
       )}
@@ -1974,19 +2214,46 @@ function PhotoBox({ content }: { content: string }) {
     </div>
   );
 }
-function EditableSignature({ content, transcript = false }: { content: string; transcript?: boolean }) {
+function EditableSignature({ content, transcript = false, signature, stamp }: { content: string; transcript?: boolean; signature?: string; stamp?: string }) {
   const lines = content.split("\n");
   return (
     <div className={transcript ? "transcript-signature" : "arabic-signature"}>
       {!transcript && <p>{lines[0]}</p>}
       <strong>{lines[transcript ? 0 : 1]}</strong>
-      <div className="signature-space" />
+      <div className="signature-space">
+        {stamp && <img className="certificate-stamp" src={stamp} alt="Stempel digital" />}
+        {signature && <img className="certificate-signature-image" src={signature} alt="Tanda tangan digital" />}
+      </div>
       <b>{lines[transcript ? 1 : 2]}</b>
     </div>
   );
 }
 
 function CertificateModal({ student, scores, subjects, institution, template, average, passed, onClose }: { student: Student; scores: number[]; subjects: Subject[]; institution: InstitutionSettings; template: CertificateTemplate; average: number; passed: boolean; onClose: () => void }) {
+  const documentRef = useRef<HTMLDivElement>(null);
+  const [qrDataUrl, setQrDataUrl] = useState("");
+  const [pdfBusy, setPdfBusy] = useState(false);
+  useEffect(() => {
+    if (!student.verificationCode) return;
+    import("qrcode").then(({ toDataURL }) => toDataURL(`${window.location.origin}/?verify=${student.verificationCode}`, { width: 240, margin: 1 })).then(setQrDataUrl).catch(() => undefined);
+  }, [student.verificationCode]);
+  async function downloadPdf() {
+    if (!documentRef.current || pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import("html2canvas"), import("jspdf")]);
+      const pages = Array.from(documentRef.current.querySelectorAll<HTMLElement>(".cert-page"));
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+      for (let index = 0; index < pages.length; index += 1) {
+        const canvas = await html2canvas(pages[index], { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+        if (index > 0) pdf.addPage("a4", "portrait");
+        pdf.addImage(canvas.toDataURL("image/jpeg", 0.94), "JPEG", 0, 0, 210, 297, undefined, "FAST");
+      }
+      pdf.save(`ijazah-${student.id}.pdf`);
+    } finally {
+      setPdfBusy(false);
+    }
+  }
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <section className="preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-title" onClick={(e) => e.stopPropagation()}>
@@ -2000,8 +2267,8 @@ function CertificateModal({ student, scores, subjects, institution, template, av
             <X size={20} />
           </button>
         </div>
-        <div className="certificate-preview">
-          <CertificatePages student={student} scores={scores} subjects={subjects} institution={institution} template={template} />
+        <div className="certificate-preview" ref={documentRef}>
+          <CertificatePages student={student} scores={scores} subjects={subjects} institution={institution} template={template} qrDataUrl={qrDataUrl} />
         </div>
         <div className="preview-actions">
           <span className={`print-status ${passed ? "pass" : ""}`}>
@@ -2011,9 +2278,9 @@ function CertificateModal({ student, scores, subjects, institution, template, av
             <Printer size={16} />
             Cetak A4
           </button>
-          <button className="primary-button" onClick={() => window.print()}>
-            <FileText size={16} />
-            Simpan sebagai PDF
+          <button className="primary-button" disabled={pdfBusy} onClick={downloadPdf}>
+            <Download size={16} />
+            {pdfBusy ? "Membuat PDF…" : "Unduh PDF"}
           </button>
         </div>
       </section>

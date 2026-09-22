@@ -25,6 +25,12 @@ let denied = false;
 try { await getDoc(doc(db, "settings", "institution")); }
 catch (error) { denied = error?.code === "permission-denied"; }
 if (!denied) throw new Error("Akun non-admin masih dapat membaca data. Aturan admin belum aktif.");
-console.log(`Tes keamanan lulus: ${anonymousDisabled ? "login anonim dinonaktifkan dan " : "akun anonim "}tidak dapat membaca data.`);
+let publicVerificationReadable = false;
+try {
+  await getDoc(doc(db, "verifications", "000000000000000000"));
+  publicVerificationReadable = true;
+} catch {}
+if (!publicVerificationReadable) throw new Error("Endpoint verifikasi publik belum dapat dibaca.");
+console.log(`Tes keamanan lulus: ${anonymousDisabled ? "login anonim dinonaktifkan dan " : "akun anonim "}data admin terlindungi; verifikasi ijazah publik aktif.`);
 if (auth.currentUser) await signOut(auth);
 await terminate(db);

@@ -11,6 +11,8 @@ test('averageScore calculates the rounded mean for a score array', () => {
 test('getStudentStatus marks passing average as Lulus', () => {
   assert.equal(getStudentStatus([70, 75, 80]), 'Lulus');
   assert.equal(getStudentStatus([60, 70, 69]), 'Proses');
+  assert.equal(getStudentStatus([75, 76, 77], 80), 'Proses');
+  assert.equal(getStudentStatus([80, 82, 84], 80), 'Lulus');
 });
 
 test('getCertificateCandidates returns only eligible and unissued students', () => {
@@ -27,4 +29,5 @@ test('certificate validation requires identity, full scores, and passing result'
   const valid = { name: 'Ahmad', arabicName: 'أحمد', nisn: '123', birthPlace: 'Jakarta', birthDate: '2006-01-01', status: 'Lulus' as const, scores: Array(11).fill(80) };
   assert.deepEqual(certificateValidationIssues(valid), []);
   assert.deepEqual(certificateValidationIssues({ ...valid, scores: [80, 80, 0] }), ['11 nilai mata pelajaran', 'kelulusan (rata-rata minimal 70)']);
+  assert.deepEqual(certificateValidationIssues(valid, 85), ['kelulusan (rata-rata minimal 85)']);
 });

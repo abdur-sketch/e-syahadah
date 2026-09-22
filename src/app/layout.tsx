@@ -15,6 +15,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "E-Syahadah | Sistem Ijazah Digital Pesantren",
   description: "Kelola nilai dan terbitkan ijazah pesantren berbahasa Arab.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "E-Syahadah", statusBarStyle: "default" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

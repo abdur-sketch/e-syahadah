@@ -10,6 +10,10 @@ export type InstitutionSettings = {
   principal: string;
   address: string;
   arabicAddress: string;
+  passingGrade: number;
+  activeAcademicYear: string;
+  signatureDataUrl: string;
+  stampDataUrl: string;
 };
 
 export const defaultSettings: InstitutionSettings = {
@@ -21,6 +25,10 @@ export const defaultSettings: InstitutionSettings = {
   principal: "Ahmad Rasyid",
   address: "Jl. Pendidikan Islam No. 1",
   arabicAddress: "جَاكَرْتَا - إِنْدُونِيْسِيَا",
+  passingGrade: 70,
+  activeAcademicYear: "",
+  signatureDataUrl: "",
+  stampDataUrl: "",
 };
 
 async function ensureSignedIn() {

@@ -30,6 +30,11 @@ export type Student = {
   birthDate?: string;
   guardian?: string;
   certificateStatus?: "Belum" | "Validasi" | "Terbit";
+  academicYear?: string;
+  archiveStatus?: "Aktif" | "Lulus" | "Arsip";
+  certificateNumber?: string;
+  verificationCode?: string;
+  issuedAt?: string;
 };
 
 function fromFirestore(snapshot: QueryDocumentSnapshot<DocumentData>): Student | null {
@@ -60,6 +65,11 @@ function fromFirestore(snapshot: QueryDocumentSnapshot<DocumentData>): Student |
     birthDate: typeof data.birthDate === "string" ? data.birthDate : "",
     guardian: typeof data.guardian === "string" ? data.guardian : "",
     certificateStatus: data.certificateStatus === "Terbit" ? "Terbit" : data.certificateStatus === "Validasi" ? "Validasi" : "Belum",
+    academicYear: typeof data.academicYear === "string" ? data.academicYear : "",
+    archiveStatus: data.archiveStatus === "Lulus" ? "Lulus" : data.archiveStatus === "Arsip" ? "Arsip" : "Aktif",
+    certificateNumber: typeof data.certificateNumber === "string" ? data.certificateNumber : "",
+    verificationCode: typeof data.verificationCode === "string" ? data.verificationCode : "",
+    issuedAt: typeof data.issuedAt === "string" ? data.issuedAt : "",
   };
 }
 
@@ -102,6 +112,16 @@ export async function saveStudent(student: Student, academicYear: string) {
     { ...student, academicYear, updatedAt: serverTimestamp() },
     { merge: true },
   );
+}
+
+export async function saveStudents(students: Student[], academicYear: string) {
+  await ensureSignedIn();
+  const chunks = Array.from({ length: Math.ceil(students.length / 400) }, (_, index) => students.slice(index * 400, (index + 1) * 400));
+  for (const chunk of chunks) {
+    const batch = writeBatch(firestore!);
+    chunk.forEach((student) => batch.set(doc(firestore!, "students", student.id), { ...student, academicYear: student.academicYear || academicYear, updatedAt: serverTimestamp() }, { merge: true }));
+    await batch.commit();
+  }
 }
 
 export async function deleteStudent(studentId: string) {

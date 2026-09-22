@@ -3249,6 +3249,63 @@ button {
     overflow: visible;
   }
 }
+
+.data-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 18px;
+}
+.data-tools-grid article {
+  min-height: 190px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+}
+.data-tools-grid article > svg { color: #6652c8; }
+.data-tools-grid h3 { margin: 15px 0 7px; font-size: 15px; }
+.data-tools-grid p { min-height: 48px; margin: 0 0 16px; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.archive-list { padding: 8px 18px 20px; }
+.archive-row { display: grid; grid-template-columns: minmax(190px, 1.4fr) .7fr .4fr .45fr auto 34px; align-items: center; gap: 12px; min-height: 68px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 10px; }
+.audit-list { padding: 4px 18px 24px; }
+.audit-list article { display: flex; align-items: center; gap: 12px; padding: 14px 4px; border-bottom: 1px solid var(--line); }
+.audit-list article > svg { color: #6755cf; }
+.audit-list article div { display: grid; gap: 4px; }
+.audit-list strong { font-size: 11px; }
+.audit-list span { color: var(--muted); font-size: 9px; }
+.asset-upload img { width: 110px; height: 54px; object-fit: contain; object-position: left center; border: 1px dashed var(--line); border-radius: 7px; background: #fff; }
+.admin-access-card { grid-column: 1 / -1; display: flex; gap: 12px; align-items: center; padding: 14px; border: 1px solid #b9dfc3; border-radius: 10px; background: #effaf2; color: #315f3c; }
+.admin-access-card div { display: grid; gap: 3px; }
+.admin-access-card strong { font-size: 11px; }
+.admin-access-card span,.admin-access-card small { font-size: 9px; }
+.certificate-number { display: block; color: #6652c8; font-size: 9px; font-weight: 700; text-align: center; }
+.signature-space { position: relative; }
+.certificate-signature-image,.certificate-stamp { position: absolute; inset: 50% auto auto 50%; transform: translate(-50%, -50%); object-fit: contain; }
+.certificate-signature-image { z-index: 2; width: 70px; height: 42px; }
+.certificate-stamp { z-index: 1; width: 62px; height: 62px; opacity: .72; }
+.certificate-qr { position: absolute; z-index: 5; left: 11%; bottom: 7%; display: grid; justify-items: center; gap: 2px; direction: ltr; }
+.certificate-qr img { width: 50px; height: 50px; }
+.certificate-qr span { max-width: 90px; color: #111; font: 6px Arial,sans-serif; }
+.verification-shell { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 20% 10%,#eeeaff,transparent 35%),#f8f7fb; }
+.verification-card { width: min(520px,100%); padding: 34px; border: 1px solid #e2dfeb; border-radius: 20px; background: #fff; box-shadow: 0 24px 80px #3c32651f; text-align: center; }
+.verification-brand { display: flex; align-items: center; justify-content: center; gap: 9px; margin-bottom: 34px; color: #5d4bc3; }
+.verification-card h1 { margin: 18px 0 8px; font-size: 25px; }
+.verification-card p { color: #777184; font-size: 12px; }
+.verification-valid { display: inline-flex; align-items: center; gap: 9px; padding: 10px 15px; border-radius: 999px; background: #e9f8ed; color: #32834a; font-size: 12px; font-weight: 800; }
+.verification-card dl { margin: 24px 0; border: 1px solid #ece9f1; border-radius: 12px; overflow: hidden; text-align: left; }
+.verification-card dl div { display: grid; grid-template-columns: 130px 1fr; gap: 12px; padding: 11px 14px; border-bottom: 1px solid #ece9f1; }
+.verification-card dl div:last-child { border: 0; }
+.verification-card dt { color: #8e8997; font-size: 10px; }
+.verification-card dd { margin: 0; font-size: 11px; font-weight: 700; }
+.verification-card > a { color: #604dc7; font-size: 11px; font-weight: 700; }
+.app-shell.dark .data-tools-grid article { background: #24283d; }
+.app-shell.dark .admin-access-card { background: #243a32; border-color: #3d624e; color: #bde6c7; }
+@media (max-width: 800px) {
+  .data-tools-grid { grid-template-columns: 1fr; }
+  .archive-row { grid-template-columns: 1fr auto auto; }
+  .archive-row > span:nth-of-type(1),.archive-row > span:nth-of-type(2) { display: none; }
+}
 @media print {
   .sidebar,
   .topbar,

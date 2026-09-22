@@ -44,7 +44,15 @@ service cloud.firestore {
         && request.resource.data.arabicFoundation is string
         && request.resource.data.city is string
         && request.resource.data.principal is string
-        && request.resource.data.arabicAddress is string;
+        && request.resource.data.arabicAddress is string
+        && request.resource.data.passingGrade is number
+        && request.resource.data.passingGrade >= 1
+        && request.resource.data.passingGrade <= 100
+        && request.resource.data.activeAcademicYear is string
+        && request.resource.data.signatureDataUrl is string
+        && request.resource.data.signatureDataUrl.size() <= 400000
+        && request.resource.data.stampDataUrl is string
+        && request.resource.data.stampDataUrl.size() <= 400000;
     }
 
     match /settings/certificate-template {
@@ -66,6 +74,18 @@ service cloud.firestore {
         && request.resource.data.positions is map
         && request.resource.data.texts is map
         && request.resource.data.styles is map;
+    }
+
+    match /verifications/{verificationCode} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create, update, delete: if isAdmin()
+        && request.resource.data.code == verificationCode
+        && request.resource.data.valid == true
+        && request.resource.data.certificateNumber is string
+        && request.resource.data.studentName is string
+        && request.resource.data.academicYear is string
+        && request.resource.data.institutionName is string;
     }
   }
 }
