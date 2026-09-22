@@ -1674,13 +1674,16 @@ function TemplateDesigner({ template, setTemplate, student, scores, subjects, in
   const [selected, setSelected] = useState<TemplateElementId>("coverTitle");
   const visibleIds = (Object.keys(templateLabels) as TemplateElementId[]).filter((id) => (page === 1 ? id.startsWith("cover") : id.startsWith("transcript") && id !== "transcriptWatermark"));
   function updatePosition(id: TemplateElementId, x: number, y: number) {
+    const isImage = id.endsWith("Logo") || id.endsWith("Watermark") || id.endsWith("Photo");
+    const minX = isImage ? 8 : 14;
+    const maxX = isImage ? 92 : 86;
     setTemplate({
       ...template,
       positions: {
         ...template.positions,
         [id]: {
-          x: Math.max(2, Math.min(98, x)),
-          y: Math.max(2, Math.min(98, y)),
+          x: Math.max(minX, Math.min(maxX, x)),
+          y: Math.max(5, Math.min(95, y)),
         },
       },
     });
@@ -1879,6 +1882,16 @@ function TemplateDesigner({ template, setTemplate, student, scores, subjects, in
           </label>
         </div>
         <div className="designer-actions">
+          <button
+            className="ghost-action"
+            onClick={() => {
+              setTemplate({ ...template, positions: { ...defaultTemplate.positions } });
+              notify("Tata letak dirapikan tanpa mengubah teks, font, logo, atau watermark.");
+            }}
+          >
+            <Move size={14} />
+            Rapikan posisi
+          </button>
           <button
             className="ghost-action"
             onClick={() => {
@@ -2180,12 +2193,7 @@ function CertificatePages({ student, scores, subjects, institution, template, qr
 }
 
 function CertificateFrame() {
-  return (
-    <>
-      <div className="ornamental-frame" aria-hidden="true" />
-      <div className="certificate-clean-center" aria-hidden="true" />
-    </>
-  );
+  return <div className="ornamental-frame" aria-hidden="true" />;
 }
 function fillTemplate(value: string, variables: Record<string, string>) {
   return value.replace(/\{\{([a-z_]+)\}\}/g, (match, key: string) => variables[key] ?? match);

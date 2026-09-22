@@ -983,13 +983,6 @@ button {
   pointer-events: none;
   background: url("/certificate-border-floral.png") center/100% 100% no-repeat;
 }
-.certificate-clean-center {
-  position: absolute;
-  inset: 9.2% 10.8%;
-  z-index: 1;
-  background: #fff;
-  pointer-events: none;
-}
 .cert-inner-frame {
   position: absolute;
   inset: 17px;
@@ -1251,34 +1244,34 @@ button {
   white-space: nowrap;
 }
 .coverTitle {
-  width: 84%;
-}
-.coverInstitution {
-  width: 86%;
-}
-.coverYear {
-  width: 75%;
-}
-.coverOpening {
-  width: 83%;
-}
-.coverStudent {
   width: 72%;
 }
+.coverInstitution {
+  width: 72%;
+}
+.coverYear {
+  width: 68%;
+}
+.coverOpening {
+  width: 72%;
+}
+.coverStudent {
+  width: 64%;
+}
 .coverDecision {
-  width: 84%;
+  width: 72%;
 }
 .coverSignature {
   width: 45%;
 }
 .transcriptTitle {
-  width: 80%;
+  width: 72%;
 }
 .transcriptStudent {
-  width: 58%;
+  width: 56%;
 }
 .transcriptTable {
-  width: 76%;
+  width: 72%;
 }
 .transcriptSignature {
   width: 55%;
